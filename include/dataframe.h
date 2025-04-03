@@ -13,8 +13,8 @@
 class BaseColumn {
 protected:
     std::string identifier;
-    std::string dataType;
     int position;
+    std::string dataType;
 
 public:
     BaseColumn(const std::string &id, int pos, const std::string &dataType);

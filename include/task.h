@@ -1,10 +1,11 @@
 #ifndef TASK_H
 #define TASK_H
+
 #include <vector>
 #include <mutex>
 #include <utility>
 #include <memory>
-#include "series.h"
+#include "dataframe.h"
 
 
 struct output_spec {};
