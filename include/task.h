@@ -7,18 +7,17 @@
 #include <memory>
 #include "dataframe.h"
 
-
-struct output_spec {};
+struct OutputSpec {};
 
 class Task {
 public:
     virtual ~Task() = default;
-    void add_next(std::shared_ptr<Task> next_task);
-    void add_output(const output_spec& spec);
+    void addNext(std::shared_ptr<Task> nextTask);
+    void addOutput(const OutputSpec& spec);
 
 protected:
-    std::vector<std::shared_ptr<Task>> next_tasks;
-    std::vector<output_spec> output_specs;
+    std::vector<std::shared_ptr<Task>> nextTasks;
+    std::vector<OutputSpec> outputSpecs;
 };
 
 class Transformer : public Task {

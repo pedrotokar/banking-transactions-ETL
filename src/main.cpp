@@ -1,10 +1,7 @@
 #include <iostream>
-#include "dataframe.h"
-#include "task.h"
+#include "dataframe.h"   
+#include "task.h"    
 
-// ====================================================================
-// Novo Transformer para imprimir infos das colunas
-// ====================================================================
 class PrintColumnInfoTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -20,34 +17,26 @@ public:
             return;
         }
 
-        // Tentaremos acessar até 5 colunas, pois não temos um getColumnCount() pronto;
-        // Ajuste se desejar mais/menos colunas. Alternativamente, poderíamos
-        // adicionar uma função getColumnCount() em DataFrame, mas aqui demonstramos o uso de try/catch.
         std::cout << "\n[PrintColumnInfoTransformer] Informações das colunas:\n";
+        // Tentaremos acessar até 5 colunas, pois não temos um getColumnCount() pronto;
         for (size_t i = 0; i < 5; i++) {
             try {
                 auto col = df->getColumn(i);
                 std::cout << "  - Coluna " << i 
                           << " => Identifier: " << col->getIdentifier()
                           << ", Tipo: " << col->getTypeName()
-                          << ", Posição (atributo position): " << col->getPosition()
+                          << ", Posição (position): " << col->getPosition()
                           << ", Tamanho (size): " << col->size()
                           << "\n";
             } catch (const std::exception& ex) {
-                // Quando estourar a quantidade de colunas, cairá aqui
+                // Ao estourar a quantidade de colunas, cairá aqui
                 std::cout << "  - Coluna " << i << " não encontrada (out_of_range): " << ex.what() << "\n";
             }
         }
-
-        // Este Transformer não gera nenhum DataFrame de saída,
-        // mas se você quisesse encadeá-lo, poderia criar e retornar um.
+        // Este Transformer não gera DataFrame de saída
     }
 };
 
-// ====================================================================
-// 1) Classe derivada de Transformer que soma a coluna "age"
-// (repete o que já havia, apenas mantido aqui)
-// ====================================================================
 class SumAgeTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -64,12 +53,12 @@ public:
             return;
         }
 
-        // Tenta achar a coluna "age"
+        // Procura a coluna "age"
         int ageColIndex = -1;
         for (size_t i = 0; i < 3; i++) {
             auto col = df->getColumn(i);
             if (col->getIdentifier() == "age") {
-                ageColIndex = (int)i;
+                ageColIndex = static_cast<int>(i);
                 break;
             }
         }
@@ -79,14 +68,14 @@ public:
             return;
         }
 
-        // Faz a soma de todos os valores int na coluna "age"
+        // Soma todos os valores int na coluna "age"
         int sum = 0;
         auto ageCol = df->getColumn(ageColIndex);
         for (size_t i = 0; i < ageCol->size(); i++) {
             sum += std::stoi(ageCol->getValue(i));
         }
 
-        // Cria um novo DataFrame com a soma calculada
+        // Cria um novo DataFrame com a soma
         DataFrame* outDf = new DataFrame();
         auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
         sumColumn->addValue(sum);
@@ -97,11 +86,6 @@ public:
     }
 };
 
-// ====================================================================
-// 2) Classe derivada de Transformer que dobra a coluna "salary"
-//    e produz uma coluna "salary_x2" no novo DataFrame
-// (repete o que já havia, apenas mantido aqui)
-// ====================================================================
 class DoubleSalaryTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -118,12 +102,12 @@ public:
             return;
         }
 
-        // Tenta achar a coluna "salary"
+        // Procura a coluna "salary"
         int salaryColIndex = -1;
         for (size_t i = 0; i < 3; i++) {
             auto col = df->getColumn(i);
             if (col->getIdentifier() == "salary") {
-                salaryColIndex = (int)i;
+                salaryColIndex = static_cast<int>(i);
                 break;
             }
         }
@@ -137,9 +121,9 @@ public:
         DataFrame* outDf = new DataFrame();
         auto doubledSalaryCol = std::make_shared<Column<double>>("salary_x2", 0);
 
-        auto col = df->getColumn(salaryColIndex);
-        for (size_t i = 0; i < col->size(); i++) {
-            std::string valStr = col->getValue(i);
+        auto salaryCol = df->getColumn(salaryColIndex);
+        for (size_t i = 0; i < salaryCol->size(); i++) {
+            std::string valStr = salaryCol->getValue(i);
             if (valStr == "N/A") {
                 doubledSalaryCol->addValue(0.0);
             } else {
@@ -150,14 +134,15 @@ public:
         outDf->addColumn(doubledSalaryCol);
 
         outputs.push_back(outDf);
-        std::cout << "[DoubleSalaryTransformer] Concluído: valores de salary foram dobrados.\n";
+        std::cout << "[DoubleSalaryTransformer] Concluído: valores de 'salary' foram dobrados.\n";
     }
 };
 
-int main() {
-    // ======================================================
-    // 1) Monta o DataFrame original com age, name, salary
-    // ======================================================
+int main()
+{
+    // ===========================
+    // 1) Monta o DataFrame
+    // ===========================
     auto ageColumn = std::make_shared<Column<int>>("age", 0);
     ageColumn->addValue(25);
     ageColumn->addValue(30);
@@ -173,7 +158,7 @@ int main() {
     salaryColumn->addValue(7500.0);
     salaryColumn->addValue(9000.0);
 
-    // Criando uma quarta coluna (int) para demonstrar heterogeneidade de tipos (cada coluna tem um T distinto)
+    // Exemplo de coluna extra (int)
     auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3);
     extraIntColumn->addValue(101);
     extraIntColumn->addValue(102);
@@ -188,23 +173,22 @@ int main() {
     std::cout << "\n== DataFrame original ==\n";
     std::cout << df.toString() << std::endl;
 
-    // ======================================================
-    // 2) Usa o Transformer que imprime infos das colunas
-    // ======================================================
+    // ===========================
+    // 2) PrintColumnInfoTransformer
+    // ===========================
     {
         std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
-        inputs.push_back({{0}, &df});  // "param" e ponteiro para df
+        inputs.push_back({{0}, &df});
 
         std::vector<DataFrame*> outputs;
         auto infoTransformer = std::make_shared<PrintColumnInfoTransformer>();
         infoTransformer->transform(outputs, inputs);
-
-        // Não gera DataFrame de saída, então nada para liberar em outputs
+        // Não gera DataFrame de saída
     }
 
-    // ======================================================
-    // 3) Usa o SumAgeTransformer
-    // ======================================================
+    // ===========================
+    // 3) SumAgeTransformer
+    // ===========================
     {
         std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
         inputs.push_back({{0}, &df});
@@ -217,16 +201,16 @@ int main() {
             std::cout << "\n== DataFrame resultante (Soma de 'age') ==\n";
             std::cout << outputs[0]->toString() << std::endl;
 
-            // Liberar memória
+            // Libera memória
             for (auto* outPtr : outputs) {
                 delete outPtr;
             }
         }
     }
 
-    // ======================================================
-    // 4) Usa o DoubleSalaryTransformer
-    // ======================================================
+    // ===========================
+    // 4) DoubleSalaryTransformer
+    // ===========================
     {
         std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
         inputs.push_back({{0}, &df});
@@ -239,22 +223,22 @@ int main() {
             std::cout << "\n== DataFrame resultante (Salary dobrado) ==\n";
             std::cout << outputs[0]->toString() << std::endl;
 
-            // Liberar memória
+            // Libera memória
             for (auto* outPtr : outputs) {
                 delete outPtr;
             }
         }
     }
 
-    // ======================================================
-    // 5) Exemplo: recupera e exibe algumas linhas específicas do DataFrame original
-    // ======================================================
+    // ===========================
+    // 5) Recupera e exibe linhas
+    // ===========================
     {
         size_t rowIndex = 2;
         try {
             std::vector<std::string> row = df.getRow(rowIndex);
             std::cout << "\n== Row " << rowIndex << " do DataFrame original ==\n";
-            for (auto &val : row) {
+            for (auto& val : row) {
                 std::cout << val << " | ";
             }
             std::cout << "\n";
@@ -268,7 +252,7 @@ int main() {
         try {
             std::vector<std::string> row = df.getRow(rowIndex);
             std::cout << "\n== Row " << rowIndex << " do DataFrame original ==\n";
-            for (auto &val : row) {
+            for (auto& val : row) {
                 std::cout << val << " | ";
             }
             std::cout << "\n";
@@ -277,10 +261,9 @@ int main() {
         }
     }
 
-    // ======================================================
-    // 6) Tentativa de acessar coluna e linha fora do range
-    //    para mostrar exception
-    // ======================================================
+    // ===========================
+    // 6) Testa exceções
+    // ===========================
     {
         try {
             std::cout << "\n== Tentando acessar df.getColumn(10) ==\n";
@@ -301,8 +284,5 @@ int main() {
         }
     }
 
-    // ======================================================
-    // Fim
-    // ======================================================
     return 0;
 }
