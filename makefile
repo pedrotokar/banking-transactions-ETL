@@ -2,18 +2,18 @@
 
 SRC_DIR = src
 INCLUDE_DIR = include
+MODULES_DIRS = dataframe
 
 CXX = g++
 CXXFLAGS = -Wall -I $(INCLUDE_DIR)
 
-SRC = $(wildcard $(SRC_DIR)/*.cpp)
+SRC = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)))
 
 .PHONY: build help run clean
 
 all: build run ## Build and run the project
 
 build: $(SRC) ## Build the project
-	@echo "Building project..."
 	$(CXX) $(CXXFLAGS) -o out $(SRC)
 
 run: ## Run the project
