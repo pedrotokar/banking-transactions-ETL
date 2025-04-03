@@ -7,38 +7,37 @@
 #include <functional>
 #include <typeinfo>
 
-// ╰─ g++ -std=c++17 -o main series.cpp                                                                                                       ─╯
+// ╰─ g++ -std=c++17 -o main column.cpp                                                                                                       ─╯
 
 using namespace std;
 
-class Series {
+class BaseColumn {
 protected:
     string identifier;
-    int position;
     string dataType;
+    int position;
     
 public:
-    Series(const string &id, int pos, const string &dataType)
+    BaseColumn(const string &id, int pos, const string &dataType)
         : identifier(id), position(pos), dataType(dataType) {}
-
+    
+        
     string getIdentifier() const { return identifier; }
     string getTypeName() const { return dataType; }
-
-    virtual void addValue(const void *value) = 0;
+    
     virtual string getValue(size_t index) const = 0;
     virtual size_t size() const = 0;
-
-    virtual ~Series() {}
+    virtual ~BaseColumn() {}
 };
 
 template <typename T>
-class TypedSeries : public Series {
+class Column : public BaseColumn {
 private:
     vector<T> data;
 
 public:
-    TypedSeries(const string &id, int pos)
-        : Series(id, pos, typeid(T).name()) {}
+    Column(const string &id, int pos)
+        : BaseColumn(id, pos, typeid(T).name()) {}
 
     // Adiciona um valor garantindo que ele seja do tipo T
     void addValue(const T &value) {
@@ -46,18 +45,18 @@ public:
     }
 
     // Adaptador para o método abstrato da classe base
-    void addValue(const void *value) override {
-        const T *typedValue = static_cast<const T *>(value);
-        if (!typedValue) {
-            throw invalid_argument("Null value provided.");
-        }
-        addValue(*typedValue);
-    }
+    // void addValue(const void *value) override {
+    //     const T *typedValue = static_cast<const T *>(value);
+    //     if (!typedValue) {
+    //         throw invalid_argument("Null value provided.");
+    //     }
+    //     addValue(*typedValue);
+    // }
 
     // Retorna o valor na posição indicada como string
     string getValue(size_t index) const override {
         if (index >= data.size()) {
-            throw out_of_range("Index out of series bounds.");
+            throw out_of_range("Index out of column bounds.");
         }
         ostringstream oss;
         oss << data[index];
@@ -72,7 +71,7 @@ public:
     // Representa a série como um vetor coluna (cada valor em uma linha)
     string toString() const {
         ostringstream oss;
-        oss << "Series '" << identifier << "' (position: " << position
+        oss << "BaseColumn '" << identifier << "' (position: " << position
             << ", type: " << dataType << "):\n";
         for (const auto &value : data) {
             oss << "| " << value << " |\n";
@@ -84,18 +83,18 @@ public:
 class DataFrame {
 private:
     // Armazena as séries utilizando smart pointers para gerenciar a memória
-    vector<shared_ptr<Series>> columns;
+    vector<shared_ptr<BaseColumn>> columns;
 
 public:
     // Adiciona uma nova série ao DataFrame
-    void addSeries(shared_ptr<Series> series) {
-        columns.push_back(series);
+    void addColumn(shared_ptr<BaseColumn> column) {
+        columns.push_back(column);
     }
 
     // Retorna a série (coluna) no índice especificado
-    shared_ptr<Series> getColumn(size_t index) const {
+    shared_ptr<BaseColumn> getColumn(size_t index) const {
         if (index >= columns.size()) {
-            throw out_of_range("Column index out of DataFrame bounds.");
+            throw out_of_range("BaseColumn index out of DataFrame bounds.");
         }
         return columns[index];
     }
@@ -144,27 +143,27 @@ public:
 
 int main() {
     // Cria séries com diferentes números de elementos
-    auto ageSeries = make_shared<TypedSeries<int>>("age", 0);
-    ageSeries->addValue(25);
-    ageSeries->addValue(30);
-    ageSeries->addValue(45);
+    auto ageColumn = make_shared<Column<int>>("age", 0);
+    ageColumn->addValue(25);
+    ageColumn->addValue(30);
+    ageColumn->addValue(45);
 
-    auto nameSeries = make_shared<TypedSeries<string>>("name", 1);
-    nameSeries->addValue(string("Ana"));
-    nameSeries->addValue(string("Bruno"));
-    nameSeries->addValue(string("Carla"));
+    auto nameColumn = make_shared<Column<string>>("name", 1);
+    nameColumn->addValue("Ana");
+    nameColumn->addValue("Bruno");
+    nameColumn->addValue("Carla");
 
     // Cria uma série com menos elementos para testar o caso "N/A"
-    auto salarySeries = make_shared<TypedSeries<double>>("salary", 2);
-    salarySeries->addValue(5000.0);
-    salarySeries->addValue(7500.0);
+    auto salaryColumn = make_shared<Column<double>>("salary", 2);
+    salaryColumn->addValue(5000.0);
+    salaryColumn->addValue(7500.0);
     // Note: Não adicionamos um terceiro valor
 
     // Cria o DataFrame e adiciona as séries
     DataFrame df;
-    df.addSeries(ageSeries);
-    df.addSeries(nameSeries);
-    df.addSeries(salarySeries);
+    df.addColumn(ageColumn);
+    df.addColumn(nameColumn);
+    df.addColumn(salaryColumn);
 
     // Exibe o DataFrame completo
     cout << df.toString() << endl;
@@ -186,8 +185,8 @@ int main() {
     // Exemplo de processamento direto da coluna 'age'
     try {
         int sum = 0;
-        for (size_t i = 0; i < ageSeries->size(); ++i) {
-            sum += stoi(ageSeries->getValue(i));
+        for (size_t i = 0; i < ageColumn->size(); ++i) {
+            sum += stoi(ageColumn->getValue(i));
         }
         cout << "Sum of values in column 'age': " << sum << endl;
     }
