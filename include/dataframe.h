@@ -47,9 +47,9 @@ public:
 
 class DataFrame {
 private:
-    std::vector<std::shared_ptr<BaseColumn>> columns;
 
 public:
+    std::vector<std::shared_ptr<BaseColumn>> columns; //Mudei isso para público para fazer testes enquanto não existe um método de adicionar linha!
     void addColumn(std::shared_ptr<BaseColumn> column);
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
     std::vector<std::string> getRow(size_t row) const;

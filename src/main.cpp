@@ -86,6 +86,56 @@ public:
     }
 };
 
+class SumAgeTransformerTestInterface : public Transformer {
+public:
+    void transform(std::vector<DataFrame*>& outputs,
+                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    {
+        if (inputs.empty()) {
+            std::cout << "[SumAgeTransformer] Nenhum DataFrame na entrada.\n";
+            return;
+        }
+
+        DataFrame* df = inputs[0].second;
+        if (!df) {
+            std::cout << "[SumAgeTransformer] DataFrame nulo.\n";
+            return;
+        }
+
+        // Procura a coluna "age"
+        int ageColIndex = -1;
+        for (size_t i = 0; i < 3; i++) {
+            auto col = df->getColumn(i);
+            if (col->getIdentifier() == "age") {
+                ageColIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (ageColIndex < 0) {
+            std::cout << "[SumAgeTransformer] Coluna 'age' não encontrada.\n";
+            return;
+        }
+
+        // Soma todos os valores int na coluna "age"
+        int sum = 0;
+        auto ageCol = df->getColumn(ageColIndex);
+        for (size_t i = 0; i < ageCol->size(); i++) {
+            sum += std::stoi(ageCol->getValue(i));
+        }
+
+        //Adiciona ao DataFrame de saída a soma
+        DataFrame* outDf = outputs.at(0);
+//        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
+        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
+        sumColumn->addValue(sum);
+        outDf->columns.at(0) = sumColumn; //No lugar de fazer isso, usaria um método de adicionar linhaa
+
+        outputs.push_back(outDf);
+        std::cout << "[SumAgeTransformer] Soma da coluna 'age': " << sum << "\n";
+    }
+};
+
 class DoubleSalaryTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -206,6 +256,34 @@ int main()
                 delete outPtr;
             }
         }
+    }
+
+
+    // ===========================
+    // 3.5) SumAgeTransformer testando interface
+    // ===========================
+    {
+        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        inputs.push_back({{0}, &df});
+
+        DataFrame* outDf = new DataFrame();
+        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
+        outDf->addColumn(sumColumn);
+
+        auto sumTransformer = std::make_shared<SumAgeTransformerTestInterface>();
+        sumTransformer->addOutput(outDf);
+
+        sumTransformer->execute(inputs);
+
+        //if (!outputs.empty()) {
+            std::cout << "\n== DataFrame resultante (Soma de 'age') ==\n";
+            std::cout << outDf->toString() << std::endl;
+            delete outDf;
+            // Libera memória
+        //    for (auto* outPtr : outputs) {
+        //        delete outPtr;
+        //    }
+        //}
     }
 
     // ===========================
