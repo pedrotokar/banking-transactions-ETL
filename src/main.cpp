@@ -125,7 +125,7 @@ public:
         // Soma todos os valores int na coluna "age"
         int sum = 0;
         auto ageCol = df->getColumn(ageColIndex);
-        for (size_t i = 0; i < ageCol->size(); i++) {
+        for (auto i : inputs.at(0).first) {
             sum += std::stoi(ageCol->getValue(i));
         }
 
@@ -275,7 +275,7 @@ void teste1() {
         auto sumTransformer = std::make_shared<SumAgeTransformerTestInterface>();
         sumTransformer->addOutput(outDf);
 
-        sumTransformer->execute(inputs);
+        sumTransformer->execute();
 
         //if (!outputs.empty()) {
             std::cout << "\n== DataFrame resultante (Soma de 'age') ==\n";
@@ -462,7 +462,10 @@ public:
             auto extraInt = df->getElement<int>(index, 3); row.push_back(extraInt);
             outDf->addRow(row);
             outDf->addRow(row);
+            outDf->addRow(row);
+            outDf->addRow(row);
         }
+
 
         std::cout << "[DuplicateDFTransformer] Concluído: dataframe foi dobrado\n";
     }
@@ -556,12 +559,10 @@ void teste3() {
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
 
     //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
-    //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
-    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
-    t1->execute(inputs);
+    t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
 
-    t2->execute(inputs);
+    t2->executeWithThreading(8);
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
 }
 
