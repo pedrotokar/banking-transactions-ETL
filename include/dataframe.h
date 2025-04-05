@@ -125,7 +125,7 @@ const std::vector<T>& DataFrame::getColumnData(size_t index) const {
 
 template <typename T>
 T DataFrame::getElement(size_t rowIdx, size_t colIdx) const {
-    return getColumnData<T>(colIdx)[rowIdx];
+    return getColumnData<T>(colIdx).at(rowIdx);
 }
 
 #endif

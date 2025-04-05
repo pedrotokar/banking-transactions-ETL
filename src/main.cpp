@@ -422,7 +422,137 @@ void teste2() {
     cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
 }
 
+class DuplicateDFTransformer : public Transformer {
+public:
+    void transform(std::vector<DataFrame*>& outputs,
+                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    {
+        if (inputs.empty()) {
+            std::cout << "[DuplicateDFTransformer] Nenhum DataFrame na entrada.\n";
+            return;
+        }
+
+        DataFrame* df = inputs[0].second;
+        if (!df) {
+            std::cout << "[DuplicateDFTransformer] DataFrame nulo.\n";
+            return;
+        }
+
+        //if (salaryColIndex < 0) {
+        //    std::cout << "[DoubleSalaryTransformer] Coluna 'salary' não encontrada.\n";
+        //    return;
+        //}
+        auto outDf = outputs.at(0);
+        for (auto index : inputs[0].first) {
+            std::vector<std::any> row;
+            auto age = df->getElement<int>(index, 0); row.push_back(age);
+            auto name = df->getElement<std::string>(index, 1); row.push_back(name);
+            auto salary = df->getElement<double>(index, 2); row.push_back(salary);
+            auto extraInt = df->getElement<int>(index, 3); row.push_back(extraInt);
+            outDf->addRow(row);
+            outDf->addRow(row);
+        }
+
+        std::cout << "[DuplicateDFTransformer] Concluído: dataframe foi dobrado\n";
+    }
+};
+
+void teste3() {
+    //Dataframe inicial para testes
+    auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
+    ageColumn->addValue(25);
+    ageColumn->addValue(30);
+    ageColumn->addValue(45);
+    ageColumn->addValue(10);
+    ageColumn->addValue(11);
+    ageColumn->addValue(15);
+    ageColumn->addValue(90);
+    ageColumn->addValue(90);
+
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
+    nameColumn->addValue("Ana");
+    nameColumn->addValue("Bruno");
+    nameColumn->addValue("Carla");
+    nameColumn->addValue("Vitor");
+    nameColumn->addValue("Tokao");
+    nameColumn->addValue("Anderson");
+    nameColumn->addValue("Tomas");
+    nameColumn->addValue("Thiago");
+
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    salaryColumn->addValue(5000.0);
+    salaryColumn->addValue(7500.0);
+    salaryColumn->addValue(9000.17);
+    salaryColumn->addValue(100.12);
+    salaryColumn->addValue(1000000.0);
+    salaryColumn->addValue(6969.69);
+    salaryColumn->addValue(98.1);
+    salaryColumn->addValue(0.1);
+
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
+    extraIntColumn->addValue(101);
+    extraIntColumn->addValue(102);
+    extraIntColumn->addValue(103);
+    extraIntColumn->addValue(104);
+    extraIntColumn->addValue(105);
+    extraIntColumn->addValue(106);
+    extraIntColumn->addValue(107);
+    extraIntColumn->addValue(108);
+
+    DataFrame* df = new DataFrame();
+    df->addColumn(ageColumn);
+    df->addColumn(nameColumn);
+    df->addColumn(salaryColumn);
+    df->addColumn(extraIntColumn);
+
+    DataFrame* dfOut1 = new DataFrame();
+    auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
+    auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
+    auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
+    auto extraIntColumn2 = std::make_shared<Column<int>>("codigo", 3, -100);
+    dfOut1->addColumn(ageColumn2);
+    dfOut1->addColumn(nameColumn2);
+    dfOut1->addColumn(salaryColumn2);
+    dfOut1->addColumn(extraIntColumn2);
+
+    DataFrame* dfOut2 = new DataFrame();
+    auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
+    dfOut2->addColumn(ageSumColumn);
+
+    cout << "Initial dataframe:\n" << df->toString() << endl;
+
+    cout << "Output dataframe t1:\n" << dfOut1->toString() << endl;
+
+    cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
+
+    //t1 e t2 são dois tratadores para teste. t0 é um mock
+    auto t0 = std::make_shared<DuplicateDFTransformer>();
+    auto t1 = std::make_shared<DuplicateDFTransformer>();
+    auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
+
+    //Antes de fazer as conexões tenho que add output em todos.
+    t0->addOutput(df);
+    t1->addOutput(dfOut1);
+    t2->addOutput(dfOut2);
+
+    //T0 é um mock - representa um tratador que já foi completo anteriormente
+    t0->addNext(t1);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    t1->addNext(t2);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+
+
+    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    t1->execute(inputs);
+    cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
+
+    t2->execute(inputs);
+    cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
+}
+
 int main() {
-    teste1();
+    teste3();
     return 0;
 }
