@@ -525,17 +525,18 @@ void teste3() {
 
     cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
 
-    //t1 e t2 são dois tratadores para teste. t0 é um mock
+    //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
     auto t0 = std::make_shared<DuplicateDFTransformer>();
     auto t1 = std::make_shared<DuplicateDFTransformer>();
     auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
 
-    //Antes de fazer as conexões tenho que add output em todos.
+    //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
     t0->addOutput(df);
     t1->addOutput(dfOut1);
     t2->addOutput(dfOut2);
 
     //T0 é um mock - representa um tratador que já foi completo anteriormente
+    //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
     t0->addNext(t1);
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
@@ -543,7 +544,8 @@ void teste3() {
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
 
-
+    //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
+    //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
     t1->execute(inputs);
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
