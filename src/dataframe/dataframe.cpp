@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "dataframe.h"
 #include <exception>
 
@@ -57,26 +58,28 @@ std::vector<std::string> DataFrame::getRow(size_t row) const {
 
 std::string DataFrame::toString() const {
     std::ostringstream oss;
-    size_t maxRows = 0;
+    size_t nRows = 0;
+    size_t nCols = columns.size();
 
     for (const auto &col : columns) {
-        if (col->size() > maxRows) {
-            maxRows = col->size();
+        if (col->size() > nRows) {
+            nRows = col->size();
         }
     }
 
-    oss << "DataFrame:\n";
-    oss << "Columns: ";
+    oss << "| ";
     for (const auto &col : columns) {
-        oss << col->getIdentifier() << " ";
+        oss << std::setw(10) << std::left << col->getIdentifier() << " | ";
     }
-    oss << "\nRows:\n";
+    oss << "\n";
 
-    for (size_t i = 0; i < maxRows; ++i) {
+    oss << "|" <<std::string(13*nCols-1, '=') << "|\n";
+
+    for (size_t i = 0; i < nRows; ++i) {
         oss << "| ";
         std::vector<std::string> row = getRow(i);
         for (const auto &value : row) {
-            oss << value << " | ";
+            oss << std::setw(10) << std::left << value << " | ";
         }
         oss << "\n";
     }
