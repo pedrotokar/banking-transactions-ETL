@@ -9,6 +9,8 @@
 #include <memory>
 #include <typeinfo>
 
+#include <any>
+
 
 class BaseColumn {
 protected:
@@ -26,17 +28,24 @@ public:
     virtual std::string getValue(size_t index) const = 0;
     virtual size_t size() const = 0;
     int getPosition() const { return position; }
+
+    virtual void addAny(const std::any& value) = 0;
 };
 
 template <typename T>
 class Column : public BaseColumn {
 private:
     std::vector<T> data;
+    T NAValue;
 
 public:
-    Column(const std::string &id, int pos);
+    Column(const std::string &id, int pos, T NAValue);
 
     void addValue(const T &value);
+
+    void addAny(const std::any& value) override {
+        data.push_back(std::any_cast<T>(value));
+    }
 
     std::string getValue(size_t index) const override;
     size_t size() const override;
@@ -49,12 +58,14 @@ public:
 
 class DataFrame {
 private:
+    std::vector<std::shared_ptr<BaseColumn>> columns;
+    size_t dataFrameSize = 0;
 
 public:
-    std::vector<std::shared_ptr<BaseColumn>> columns; //Mudei isso para público para fazer testes enquanto não existe um método de adicionar linha!
     void addColumn(std::shared_ptr<BaseColumn> column);
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
     std::vector<std::string> getRow(size_t row) const;
+    size_t size() {return dataFrameSize;};
     std::string toString() const;
 
     template <typename T>
@@ -62,12 +73,14 @@ public:
 
     template <typename T>
     T getElement(size_t rowIdx, size_t colIdx) const;
+
+    void addRow(const std::vector<std::any> &row);
 };
 
 
 template <typename T>
-Column<T>::Column(const std::string &id, int pos)
-    : BaseColumn(id, pos, typeid(T).name()) {
+Column<T>::Column(const std::string &id, int pos, T NAValue)
+    : BaseColumn(id, pos, typeid(T).name()), NAValue(NAValue){
 }
 
 template <typename T>
