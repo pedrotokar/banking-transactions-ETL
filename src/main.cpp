@@ -1,6 +1,11 @@
 #include <iostream>
 #include "dataframe.h"   
-#include "task.h"    
+#include "task.h"
+
+#include <vector>
+#include <any>
+
+using namespace std;
 
 class PrintColumnInfoTransformer : public Transformer {
 public:
@@ -138,8 +143,7 @@ public:
     }
 };
 
-int main()
-{
+void teste1() {
     // ===========================
     // 1) Monta o DataFrame
     // ===========================
@@ -295,6 +299,54 @@ int main()
     for (const auto& name : data) {
         std::cout << name << std::endl;
     }
+}
 
+void teste2() {
+    auto ageColumn = std::make_shared<Column<int>>("age", 0);
+    ageColumn->addValue(25);
+    ageColumn->addValue(30);
+    ageColumn->addValue(45);
+
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1);
+    nameColumn->addValue("Ana");
+    nameColumn->addValue("Bruno");
+    nameColumn->addValue("Carla");
+
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2);
+    salaryColumn->addValue(5000.0);
+    salaryColumn->addValue(7500.0);
+    salaryColumn->addValue(9000.0);
+
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3);
+    extraIntColumn->addValue(101);
+    extraIntColumn->addValue(102);
+    extraIntColumn->addValue(103);
+    extraIntColumn->addValue(103);
+
+    DataFrame df;
+    df.addColumn(ageColumn);
+    df.addColumn(nameColumn);
+    df.addColumn(salaryColumn);
+
+    cout << "DataFrame before adding a new row:\n" << df.toString() << endl;
+
+
+    vector<any> row {42, string("John"), 5000.0};
+
+    df.addRow(row);
+
+    cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+
+    df.addColumn(extraIntColumn);
+    cout << "DataFrame after adding a new column:\n" << df.toString() << endl;
+
+    vector<any> row2 {42, string("John"), 5000.0, 102};
+
+    df.addRow(row2);
+    cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+}
+
+int main() {
+    teste2();
     return 0;
 }

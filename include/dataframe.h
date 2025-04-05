@@ -9,6 +9,8 @@
 #include <memory>
 #include <typeinfo>
 
+#include <any>
+
 
 class BaseColumn {
 protected:
@@ -26,6 +28,8 @@ public:
     virtual std::string getValue(size_t index) const = 0;
     virtual size_t size() const = 0;
     int getPosition() const { return position; }
+
+    virtual void addAny(const std::any& value) = 0;
 };
 
 template <typename T>
@@ -37,6 +41,10 @@ public:
     Column(const std::string &id, int pos);
 
     void addValue(const T &value);
+
+    void addAny(const std::any& value) override {
+        data.push_back(std::any_cast<T>(value));
+    }
 
     std::string getValue(size_t index) const override;
     size_t size() const override;
@@ -62,6 +70,12 @@ public:
 
     template <typename T>
     T getElement(size_t rowIdx, size_t colIdx) const;
+
+    void addRow(const std::vector<std::any> &row) {
+        for (size_t i = 0; i < columns.size(); ++i) {
+            columns[i]->addAny(row[i]);
+        }
+    }
 };
 
 
