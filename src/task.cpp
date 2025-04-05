@@ -34,19 +34,21 @@ const std::vector<DataFrame*>& Task::getOutputs(){
 void Transformer::execute(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs1){
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
     for (auto previousTask : previousTasks){
-        for (int i = 0; i < previousTask.first->getOutputs().size(); i++){
-            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair
+        size_t dataFrameCounter = previousTask.first->getOutputs().size();
+        for (size_t i = 0; i < dataFrameCounter; i++){
+            auto dataFrame = previousTask.first->getOutputs().at(i);
+            //bool shouldSplit = previousTask.second.at(i);
+            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
             std::vector<int> indexes;
-            for (int j = 0; j < previousTask.first->getOutputs().at(i)->size(); j++){
+            for (size_t j = 0; j < dataFrame->size(); j++){
                 indexes.push_back(j);
             }
-            auto pair = std::make_pair(indexes, previousTask.first->getOutputs().at(i));
+            auto pair = std::make_pair(indexes, dataFrame);
             inputs.push_back(pair);
         }
     }
 
     std::cout << "calling transform" << std::endl;
-
     transform(outputDFs, inputs);
     std::cout << "called transform" << std::endl;
 }
