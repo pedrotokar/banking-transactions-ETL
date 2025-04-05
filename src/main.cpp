@@ -1,6 +1,7 @@
 #include <iostream>
 #include "dataframe.h"   
 #include "task.h"
+#include "dataRepository.h"
 
 #include <vector>
 #include <any>
@@ -312,7 +313,7 @@ void teste2() {
     nameColumn->addValue("Bruno");
     nameColumn->addValue("Carla");
 
-        auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
     salaryColumn->addValue(5000.42);
     salaryColumn->addValue(7500.42);
     salaryColumn->addValue(9000.42);
@@ -340,7 +341,7 @@ void teste2() {
     df.addColumn(extraIntColumn);
     cout << "DataFrame after adding a new column:\n" << df.toString() << endl;
 
-    vector<any> row2 {42, string("John"), 5000.0, nullptr};
+    vector<any> row2 {42, string("ANY"), 5000.0, nullptr};
 
     df.addRow(row2);
     cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
@@ -352,10 +353,15 @@ void teste2() {
     // Assumo que o maior gargalo seja quebrar as linhas no separador
     // Assumo que os tipos da coluna são 100% consistentes
     
-    vector<string> row3 {"42", "John", "5000.0", "123"};
+    vector<string> row3 {"42", "STRING", "5000.0", "123"};
     df.addRow(row3);
     cout << "DataFrame after adding a new row with strings:\n" << df.toString() << endl;
+
+    vector<variantRow> row4 {37, string("VARIANT"), nullptr, 182};
+    df.addRow(row4);
+    cout << "DataFrame after adding a new row with variantRow:\n" << df.toString() << endl;
 }
+
 
 int main() {
     teste2();

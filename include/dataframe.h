@@ -10,9 +10,11 @@
 #include <typeinfo>
 
 #include <any>
+#include <variant>
 
 #include "utils.h"
 
+using variantRow = std::variant<int, double, std::string, std::nullptr_t>;
 
 class BaseColumn {
 protected:
@@ -33,6 +35,7 @@ public:
 
     virtual void addAny(const std::any& value) = 0;
     virtual void addAny(const std::string& value) = 0;
+    virtual void addAny(const variantRow& value) = 0;
     virtual void appendNA() {};
 };
 
@@ -49,6 +52,10 @@ public:
 
     void addAny(const std::any& value) override {
         data.push_back(std::any_cast<T>(value));
+    }
+
+    void addAny(const variantRow& value) override {
+        data.push_back(std::get<T>(value));
     }
 
     void addAny(const std::string& value) override {
@@ -86,6 +93,7 @@ public:
 
     void addRow(const std::vector<std::any> &row);
     void addRow(const std::vector<std::string> &row);
+    void addRow(const std::vector<variantRow> &row);
 };
 
 
