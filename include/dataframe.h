@@ -11,6 +11,8 @@
 
 #include <any>
 
+#include "utils.h"
+
 
 class BaseColumn {
 protected:
@@ -30,6 +32,8 @@ public:
     int getPosition() const { return position; }
 
     virtual void addAny(const std::any& value) = 0;
+    virtual void addAny(const std::string& value) = 0;
+    virtual void appendNA() {};
 };
 
 template <typename T>
@@ -47,12 +51,18 @@ public:
         data.push_back(std::any_cast<T>(value));
     }
 
+    void addAny(const std::string& value) override {
+        data.push_back(fromString<T>(value));
+    }
+
     std::string getValue(size_t index) const override;
     size_t size() const override;
     
     std::string toString() const;
 
     const std::vector<T>& getData() const { return data; }
+    
+    void appendNA() override;
 };
 
 
@@ -75,6 +85,7 @@ public:
     T getElement(size_t rowIdx, size_t colIdx) const;
 
     void addRow(const std::vector<std::any> &row);
+    void addRow(const std::vector<std::string> &row);
 };
 
 
@@ -112,6 +123,11 @@ std::string Column<T>::toString() const {
         oss << "| " << value << " |\n";
     }
     return oss.str();
+}
+
+template <typename T>
+void Column<T>::appendNA() {
+    data.push_back(NAValue);
 }
 
 template <typename T>

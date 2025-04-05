@@ -389,9 +389,9 @@ void teste2() {
     nameColumn->addValue("Carla");
 
         auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
-    salaryColumn->addValue(5000.0);
-    salaryColumn->addValue(7500.0);
-    salaryColumn->addValue(9000.0);
+    salaryColumn->addValue(5000.42);
+    salaryColumn->addValue(7500.42);
+    salaryColumn->addValue(9000.42);
 
     auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
     extraIntColumn->addValue(101);
@@ -407,7 +407,7 @@ void teste2() {
     cout << "DataFrame before adding a new row:\n" << df.toString() << endl;
 
 
-    vector<any> row {42, string("John"), 5000.0};
+    vector<any> row {42, nullptr, 5000.0};
 
     df.addRow(row);
 
@@ -416,10 +416,21 @@ void teste2() {
     df.addColumn(extraIntColumn);
     cout << "DataFrame after adding a new column:\n" << df.toString() << endl;
 
-    vector<any> row2 {42, string("John"), 5000.0, 102};
+    vector<any> row2 {42, string("John"), 5000.0, nullptr};
 
     df.addRow(row2);
     cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+
+    cout << "Testando função de adicionar row de strings com conversão automatica" << endl;
+    // A operação tem que ser por linha pra garantir que o registros estejam corretos na hora de paralelizar
+    // Se paralelizar pela leitura da coluna pode acontecer da ordem não ser correta
+    // Vai evitar criar um mutex pra cada coluna
+    // Assumo que o maior gargalo seja quebrar as linhas no separador
+    // Assumo que os tipos da coluna são 100% consistentes
+    
+    vector<string> row3 {"42", "John", "5000.0", "123"};
+    df.addRow(row3);
+    cout << "DataFrame after adding a new row with strings:\n" << df.toString() << endl;
 }
 
 class DuplicateDFTransformer : public Transformer {
