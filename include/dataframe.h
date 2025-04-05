@@ -1,5 +1,5 @@
-#ifndef SERIES_H
-#define SERIES_H
+#ifndef DATAFRAME_H
+#define DATAFRAME_H
 
 #include <iostream>
 #include <vector>
@@ -40,8 +40,10 @@ public:
 
     std::string getValue(size_t index) const override;
     size_t size() const override;
-
+    
     std::string toString() const;
+
+    const std::vector<T>& getData() const { return data; }
 };
 
 
@@ -54,6 +56,12 @@ public:
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
     std::vector<std::string> getRow(size_t row) const;
     std::string toString() const;
+
+    template <typename T>
+    const std::vector<T>& getColumnData(size_t index) const;
+
+    template <typename T>
+    T getElement(size_t rowIdx, size_t colIdx) const;
 };
 
 
@@ -93,4 +101,18 @@ std::string Column<T>::toString() const {
     return oss.str();
 }
 
-#endif // SERIES_H
+template <typename T>
+const std::vector<T>& DataFrame::getColumnData(size_t index) const {
+    auto col = std::dynamic_pointer_cast<Column<T>>(columns[index]);
+    if (!col) {
+        throw std::bad_cast();
+    }
+    return col->getData();
+}
+
+template <typename T>
+T DataFrame::getElement(size_t rowIdx, size_t colIdx) const {
+    return getColumnData<T>(colIdx)[rowIdx];
+}
+
+#endif
