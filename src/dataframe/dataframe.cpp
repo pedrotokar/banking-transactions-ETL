@@ -44,6 +44,19 @@ void DataFrame::addRow(const std::vector<std::any> &row) {
     dataFrameSize++;
 }
 
+void DataFrame::addRow(const std::vector<std::string> &row) {
+    for (size_t i = 0; i < columns.size(); ++i) {
+        if (row[i] == "") {
+            columns[i]->appendNA();
+            continue;
+        }
+        columns[i]->addAny(row[i]);
+    }
+    dataFrameSize++;
+}
+
+
+
 std::shared_ptr<BaseColumn> DataFrame::getColumn(size_t index) const {
     if (index >= columns.size()) {
         throw std::out_of_range("BaseColumn index out of DataFrame bounds.");

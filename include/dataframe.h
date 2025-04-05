@@ -11,6 +11,8 @@
 
 #include <any>
 
+#include "utils.h"
+
 
 class BaseColumn {
 protected:
@@ -30,6 +32,7 @@ public:
     int getPosition() const { return position; }
 
     virtual void addAny(const std::any& value) = 0;
+    virtual void addAny(const std::string& value) = 0;
     virtual void appendNA() {};
 };
 
@@ -46,6 +49,10 @@ public:
 
     void addAny(const std::any& value) override {
         data.push_back(std::any_cast<T>(value));
+    }
+
+    void addAny(const std::string& value) override {
+        data.push_back(fromString<T>(value));
     }
 
     std::string getValue(size_t index) const override;
@@ -78,6 +85,7 @@ public:
     T getElement(size_t rowIdx, size_t colIdx) const;
 
     void addRow(const std::vector<std::any> &row);
+    void addRow(const std::vector<std::string> &row);
 };
 
 

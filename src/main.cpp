@@ -344,6 +344,17 @@ void teste2() {
 
     df.addRow(row2);
     cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+
+    cout << "Testando função de adicionar row de strings com conversão automatica" << endl;
+    // A operação tem que ser por linha pra garantir que o registros estejam corretos na hora de paralelizar
+    // Se paralelizar pela leitura da coluna pode acontecer da ordem não ser correta
+    // Vai evitar criar um mutex pra cada coluna
+    // Assumo que o maior gargalo seja quebrar as linhas no separador
+    // Assumo que os tipos da coluna são 100% consistentes
+    
+    vector<string> row3 {"42", "John", "5000.0", "123"};
+    df.addRow(row3);
+    cout << "DataFrame after adding a new row with strings:\n" << df.toString() << endl;
 }
 
 int main() {
