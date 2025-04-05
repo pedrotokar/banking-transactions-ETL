@@ -284,5 +284,17 @@ int main()
         }
     }
 
+    std::cout << "\n== Testando getColumnData e getElement ==\n";
+
+    auto data = df.getColumnData<std::string>(1);
+    auto valor = df.getElement<double>(1, 2);
+
+    std::cout << "Valor (1, 2): " << valor << std::endl;
+
+    std::cout << "Dados da coluna 1:\n";
+    for (const auto& name : data) {
+        std::cout << name << std::endl;
+    }
+
     return 0;
 }
