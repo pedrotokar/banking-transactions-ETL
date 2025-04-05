@@ -1,4 +1,5 @@
 #include "dataframe.h"
+#include <exception>
 
 
 BaseColumn::BaseColumn(const std::string &id, int pos, const std::string &dt)
@@ -16,9 +17,19 @@ std::string BaseColumn::getTypeName() const {
     return dataType;
 }
 
-
+//se tem zero colunas, seta o tamanho do dataframe para o da coluna. Se tem alguma, então verifica se a coluna bate o tamanho
 void DataFrame::addColumn(std::shared_ptr<BaseColumn> column) {
-    columns.push_back(column);
+    if (columns.size() == 0){
+        columns.push_back(column);
+        dataFrameSize = column->size();
+    }
+    else {
+        if (column->size() != dataFrameSize){
+            throw "Tried to add a column that doenst have the number of rows of the dataframe";
+        } else {
+            columns.push_back(column);
+        }
+    }
 }
 
 std::shared_ptr<BaseColumn> DataFrame::getColumn(size_t index) const {
