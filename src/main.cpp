@@ -275,7 +275,7 @@ void teste1() {
         auto sumTransformer = std::make_shared<SumAgeTransformerTestInterface>();
         sumTransformer->addOutput(outDf);
 
-        sumTransformer->execute(inputs);
+//        sumTransformer->execute(inputs);
 
         //if (!outputs.empty()) {
             std::cout << "\n== DataFrame resultante (Soma de 'age') ==\n";
@@ -557,11 +557,10 @@ void teste3() {
 
     //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
     //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
-    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
-    t1->execute(inputs);
+    t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
 
-    t2->execute(inputs);
+    t2->execute();
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
 }
 

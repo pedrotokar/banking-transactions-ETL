@@ -1,6 +1,9 @@
 #include "task.h"
 #include "dataframe.h"
+#include <memory>
+#include <vector>
 
+//Definições das interfaces para adicionar saídas e relacionamentos
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
     std::vector<bool> splitDFs;
@@ -11,6 +14,9 @@ void Task::addNext(std::shared_ptr<Task> nextTask) {
 }
 
 void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs){
+    if(previousTask->getOutputs().size() != splitDFs.size()){
+        throw "The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs";
+    }
     auto pair = make_pair(previousTask, splitDFs);
     previousTasks.push_back(pair);
 }
@@ -19,6 +25,7 @@ void Task::addOutput(DataFrame* spec) {
     outputDFs.push_back(spec);
 }
 
+//Getters
 const std::vector<std::shared_ptr<Task>>& Task::getNextTasks(){
     return nextTasks;
 }
@@ -31,7 +38,8 @@ const std::vector<DataFrame*>& Task::getOutputs(){
     return outputDFs;
 }
 
-void Transformer::execute(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs1){
+//Sobrescreve o método abstrato execute com o que a transformers precisam fazer
+void Transformer::execute(){
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
