@@ -74,11 +74,7 @@ public:
     template <typename T>
     T getElement(size_t rowIdx, size_t colIdx) const;
 
-    void addRow(const std::vector<std::any> &row) {
-        for (size_t i = 0; i < columns.size(); ++i) {
-            columns[i]->addAny(row[i]);
-        }
-    }
+    void addRow(const std::vector<std::any> &row);
 };
 
 

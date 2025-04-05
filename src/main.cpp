@@ -302,22 +302,22 @@ void teste1() {
 }
 
 void teste2() {
-    auto ageColumn = std::make_shared<Column<int>>("age", 0);
+    auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
     ageColumn->addValue(25);
     ageColumn->addValue(30);
     ageColumn->addValue(45);
 
-    auto nameColumn = std::make_shared<Column<std::string>>("name", 1);
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
     nameColumn->addValue("Ana");
     nameColumn->addValue("Bruno");
     nameColumn->addValue("Carla");
 
-    auto salaryColumn = std::make_shared<Column<double>>("salary", 2);
+        auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
     salaryColumn->addValue(5000.0);
     salaryColumn->addValue(7500.0);
     salaryColumn->addValue(9000.0);
 
-    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3);
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
     extraIntColumn->addValue(101);
     extraIntColumn->addValue(102);
     extraIntColumn->addValue(103);
