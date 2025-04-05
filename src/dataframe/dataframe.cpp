@@ -55,7 +55,7 @@ void DataFrame::addRow(const std::vector<std::string> &row) {
     dataFrameSize++;
 }
 
-void DataFrame::addRow(const std::vector<variantRow> &row) {
+void DataFrame::addRow(const std::vector<VarCell> &row) {
     for (size_t i = 0; i < columns.size(); ++i) {
         if (std::holds_alternative<std::nullptr_t>(row[i])) {
             columns[i]->appendNA();
