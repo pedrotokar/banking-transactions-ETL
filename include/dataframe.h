@@ -36,9 +36,10 @@ template <typename T>
 class Column : public BaseColumn {
 private:
     std::vector<T> data;
+    T NAValue;
 
 public:
-    Column(const std::string &id, int pos);
+    Column(const std::string &id, int pos, T NAValue);
 
     void addValue(const T &value);
 
@@ -58,11 +59,13 @@ public:
 class DataFrame {
 private:
     std::vector<std::shared_ptr<BaseColumn>> columns;
+    size_t dataFrameSize = 0;
 
 public:
     void addColumn(std::shared_ptr<BaseColumn> column);
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
     std::vector<std::string> getRow(size_t row) const;
+    size_t size() {return dataFrameSize;};
     std::string toString() const;
 
     template <typename T>
@@ -80,8 +83,8 @@ public:
 
 
 template <typename T>
-Column<T>::Column(const std::string &id, int pos)
-    : BaseColumn(id, pos, typeid(T).name()) {
+Column<T>::Column(const std::string &id, int pos, T NAValue)
+    : BaseColumn(id, pos, typeid(T).name()), NAValue(NAValue){
 }
 
 template <typename T>
