@@ -30,6 +30,7 @@ public:
     int getPosition() const { return position; }
 
     virtual void addAny(const std::any& value) = 0;
+    virtual void appendNA() {};
 };
 
 template <typename T>
@@ -53,6 +54,8 @@ public:
     std::string toString() const;
 
     const std::vector<T>& getData() const { return data; }
+    
+    void appendNA() override;
 };
 
 
@@ -112,6 +115,11 @@ std::string Column<T>::toString() const {
         oss << "| " << value << " |\n";
     }
     return oss.str();
+}
+
+template <typename T>
+void Column<T>::appendNA() {
+    data.push_back(NAValue);
 }
 
 template <typename T>

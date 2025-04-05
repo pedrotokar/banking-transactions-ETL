@@ -35,6 +35,10 @@ void DataFrame::addColumn(std::shared_ptr<BaseColumn> column) {
 
 void DataFrame::addRow(const std::vector<std::any> &row) {
     for (size_t i = 0; i < columns.size(); ++i) {
+        if (row[i].has_value() && row[i].type() == typeid(std::nullptr_t)) {
+            columns[i]->appendNA();
+            continue;
+        }
         columns[i]->addAny(row[i]);
     }
     dataFrameSize++;

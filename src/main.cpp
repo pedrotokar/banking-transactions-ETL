@@ -313,9 +313,9 @@ void teste2() {
     nameColumn->addValue("Carla");
 
         auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
-    salaryColumn->addValue(5000.0);
-    salaryColumn->addValue(7500.0);
-    salaryColumn->addValue(9000.0);
+    salaryColumn->addValue(5000.42);
+    salaryColumn->addValue(7500.42);
+    salaryColumn->addValue(9000.42);
 
     auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
     extraIntColumn->addValue(101);
@@ -331,7 +331,7 @@ void teste2() {
     cout << "DataFrame before adding a new row:\n" << df.toString() << endl;
 
 
-    vector<any> row {42, string("John"), 5000.0};
+    vector<any> row {42, nullptr, 5000.0};
 
     df.addRow(row);
 
@@ -340,7 +340,7 @@ void teste2() {
     df.addColumn(extraIntColumn);
     cout << "DataFrame after adding a new column:\n" << df.toString() << endl;
 
-    vector<any> row2 {42, string("John"), 5000.0, 102};
+    vector<any> row2 {42, string("John"), 5000.0, nullptr};
 
     df.addRow(row2);
     cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
