@@ -58,8 +58,8 @@ public:
 
 class DataFrame {
 private:
-    std::vector<std::shared_ptr<BaseColumn>> columns;
     size_t dataFrameSize = 0;
+    std::vector<std::shared_ptr<BaseColumn>> columns;
 
 public:
     void addColumn(std::shared_ptr<BaseColumn> column);

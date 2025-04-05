@@ -132,11 +132,9 @@ public:
         //Adiciona ao DataFrame de saída a soma
         DataFrame* outDf = outputs.at(0);
 //        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
-        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
-        sumColumn->addValue(sum);
-        outDf->columns.at(0) = sumColumn; //No lugar de fazer isso, usaria um método de adicionar linhaa
+        std::vector<any> row {sum};
+        outDf->addRow(row);
 
-        outputs.push_back(outDf);
         std::cout << "[SumAgeTransformer] Soma da coluna 'age': " << sum << "\n";
     }
 };
@@ -271,7 +269,7 @@ void teste1() {
         inputs.push_back({{0}, &df});
 
         DataFrame* outDf = new DataFrame();
-        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
+        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0, -1);
         outDf->addColumn(sumColumn);
 
         auto sumTransformer = std::make_shared<SumAgeTransformerTestInterface>();
@@ -425,6 +423,6 @@ void teste2() {
 }
 
 int main() {
-    teste2();
+    teste1();
     return 0;
 }
