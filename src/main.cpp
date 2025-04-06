@@ -749,7 +749,10 @@ void testeTrigger2(){
 }
 
 class FilterDFTransformer : public Transformer {
+private:
+    std::vector<std::string> filterStrings;
 public:
+    FilterDFTransformer(std::vector<std::string> filter = {}): filterStrings(filter) {};
     void transform(std::vector<DataFrame*>& outputs,
                    const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
     {
@@ -765,74 +768,23 @@ public:
         }
 
         std::cout << "[FilterDFTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        std::cout << "[FilterDFTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        //std::cout << "[FilterDFTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         auto outDf = outputs.at(0);
         for (auto index : inputs[0].first) {
-            if((df->getElement<std::string>(index, 0) == "Secretario") ||
-               (df->getElement<std::string>(index, 0) == "Professor") ||
-               (df->getElement<std::string>(index, 0) == "Diretor")
-            ){
-                std::vector<std::any> row;
-                auto posicao = df->getElement<std::string>(index, 0); row.push_back(posicao);
-                auto idade = df->getElement<int>(index, 1); row.push_back(idade);
-                auto ano = df->getElement<int>(index, 2); row.push_back(ano);
-                auto salario = df->getElement<double>(index, 3); row.push_back(salario);
-                outDf->addRow(row);
+            for (auto compareString: filterStrings){
+                if(df->getElement<std::string>(index, 0) == compareString){
+                    std::vector<std::any> row;
+                    auto posicao = df->getElement<std::string>(index, 0); row.push_back(posicao);
+                    auto idade = df->getElement<int>(index, 1); row.push_back(idade);
+                    auto ano = df->getElement<int>(index, 2); row.push_back(ano);
+                    auto salario = df->getElement<double>(index, 3); row.push_back(salario);
+                    outDf->addRow(row);
+                    break;
+                }
             }
         }
         std::cout << "[FilterDFTransformer] Concluído: dataframe foi filtrado. Tamanho de saída: " << outDf->size() << std::endl;
-    }
-};
-
-class AgeSumTransformerNonsense : public Transformer {
-public:
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
-    {
-        if (inputs.empty()) {
-            std::cout << "[AgeSumTransformerNonsense] Nenhum DataFrame na entrada.\n";
-            return;
-        }
-
-        DataFrame* df = inputs[0].second;
-        if (!df) {
-            std::cout << "[AgeSumTransformerNonsense] DataFrame nulo.\n";
-            return;
-        }
-
-        std::cout << "[AgeSumTransformerNonsense] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        std::cout << "[AgeSumTransformerNonsense] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
-
-        std::unordered_map<std::string, int> sum;
-
-        for (auto index : inputs[0].first) {
-            auto categoria = df->getElement<std::string>(index, 0);
-            auto idade = df->getElement<int>(index, 1);
-
-            int aux = idade;
-            for(int j = aux; j < (int)1e6; j+=aux) {
-                bool prime = true;
-
-                for(int k = 2; k*k <= (j-1); k++) {
-                    if((j-1) % k == 0) {
-                        prime = false;
-                        break;
-                    }
-                }
-                if (prime) {
-                    sum[categoria] += 1;
-                }
-            }
-        }
-
-        auto outDf = outputs.at(0);
-
-        for (const auto& [chave, valor] : sum){
-            auto row = std::vector<std::any>{chave, valor};
-            outDf->addRow(row);
-        }
-        std::cout << "[AgeSumTransformerNonsense] Concluído: somas foram computadas." << std::endl;
     }
 };
 
@@ -853,14 +805,17 @@ public:
         }
 
         std::cout << "[AgeSumTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        std::cout << "[AgeSumTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        //std::cout << "[AgeSumTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         std::unordered_map<std::string, int> sum;
 
-        for (auto index : inputs[0].first) {
-            auto categoria = df->getElement<std::string>(index, 0);
-            auto idade = df->getElement<int>(index, 1);
-            sum[categoria] += idade;
+        int repeatTimes = 20;
+        for (int i = 0; i < repeatTimes; i++){
+            for (auto index : inputs[0].first) {
+                auto categoria = df->getElement<std::string>(index, 0);
+                auto idade = df->getElement<int>(index, 1);
+                sum[categoria] += idade/repeatTimes;
+            }
         }
 
         auto outDf = outputs.at(0);
@@ -870,6 +825,46 @@ public:
             outDf->addRow(row);
         }
         std::cout << "[AgeSumTransformer] Concluído: somas foram computadas." << std::endl;
+    }
+};
+
+class SalarySumTransformer : public Transformer {
+public:
+    void transform(std::vector<DataFrame*>& outputs,
+                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    {
+        if (inputs.empty()) {
+            std::cout << "[SalarySumTransformer] Nenhum DataFrame na entrada.\n";
+            return;
+        }
+
+        DataFrame* df = inputs[0].second;
+        if (!df) {
+            std::cout << "[SalarySumTransformer] DataFrame nulo.\n";
+            return;
+        }
+
+        std::cout << "[SalarySumTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
+        //std::cout << "[SalarySumTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+
+        std::unordered_map<std::string, double> sum;
+
+        double repeatTimes = 20;
+        for (int i = 0; i < repeatTimes; i++){
+            for (auto index : inputs[0].first) {
+                auto categoria = df->getElement<std::string>(index, 0);
+                auto salario = df->getElement<double>(index, 3);
+                sum[categoria] += salario/repeatTimes;
+            }
+        }
+
+        auto outDf = outputs.at(0);
+
+        for (const auto& [chave, valor] : sum){
+            auto row = std::vector<std::any>{chave, valor};
+            outDf->addRow(row);
+        }
+        std::cout << "[SalarySumTransformer] Concluído: somas foram computadas." << std::endl;
     }
 };
 
@@ -890,7 +885,7 @@ public:
         }
 
         std::cout << "[CounterTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        std::cout << "[CounterTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        //std::cout << "[CounterTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         std::unordered_map<std::string, int> counts;
 
@@ -931,9 +926,9 @@ public:
         }
 
         std::cout << "[MeanTransformer] Tamanho do dataframe 0 de entrada: " << dfSum->size() << std::endl;
-        std::cout << "[MeanTransformer] Tamanho da array de índices 0: " << inputs[0].first.size() << std::endl;
+        //std::cout << "[MeanTransformer] Tamanho da array de índices 0: " << inputs[0].first.size() << std::endl;
         std::cout << "[MeanTransformer] Tamanho do dataframe 1 de entrada: " << dfCount->size() << std::endl;
-        std::cout << "[MeanTransformer] Tamanho da array de índices 1: " << inputs[1].first.size() << std::endl;
+        //std::cout << "[MeanTransformer] Tamanho da array de índices 1: " << inputs[1].first.size() << std::endl;
 
         auto outDf = outputs.at(0);
         for (auto index : inputs[0].first) {
@@ -963,11 +958,17 @@ void testeGeralEmap(){
     dfOutE->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOutE->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut1 = new DataFrame();
-    dfOut1->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
-    dfOut1->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
-    dfOut1->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
-    dfOut1->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
+    DataFrame* dfOut11 = new DataFrame();
+    dfOut11->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut11->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
+    dfOut11->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
+    dfOut11->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
+
+    DataFrame* dfOut12 = new DataFrame();
+    dfOut12->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut12->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
+    dfOut12->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
+    dfOut12->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
     DataFrame* dfOut21 = new DataFrame();
     dfOut21->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
@@ -977,6 +978,14 @@ void testeGeralEmap(){
     dfOut22->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut22->addColumn(std::make_shared<Column<int>>("contagem", 1, 0));
 
+    DataFrame* dfOut23 = new DataFrame();
+    dfOut23->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut23->addColumn(std::make_shared<Column<double>>("soma salario", 1, -1.0));
+
+    DataFrame* dfOut24 = new DataFrame();
+    dfOut24->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut24->addColumn(std::make_shared<Column<int>>("soma idade", 1, 0));
+
     DataFrame* dfOut3 = new DataFrame();
     dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
@@ -984,9 +993,10 @@ void testeGeralEmap(){
     dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
 
     cout << "Output dataframe specification for e:\n" << dfOutE->toString() << endl;
-    cout << "Output dataframe specification for t1:\n" << dfOut1->toString() << endl;
-    cout << "Output dataframe specification for t2.1:\n" << dfOut21->toString() << endl;
+    cout << "Output dataframe specification for t1.1 and t1.2:\n" << dfOut11->toString() << endl;
+    cout << "Output dataframe specification for t2.1 and t2.4:\n" << dfOut21->toString() << endl;
     cout << "Output dataframe specification for t2.2:\n" << dfOut22->toString() << endl;
+    cout << "Output dataframe specification for t2.3:\n" << dfOut23->toString() << endl;
     cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
 
     FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
@@ -995,8 +1005,13 @@ void testeGeralEmap(){
     e0->addOutput(dfOutE);
     e0->addRepo(repository);
 
-    auto t1 = std::make_shared<FilterDFTransformer>();
-    t1->addOutput(dfOut1);
+    auto t11FilterStrings = std::vector<std::string>{"Secretario", "Professor", "Diretor"};
+    auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
+    t11->addOutput(dfOut11);
+
+    auto t12FilterStrings = std::vector<std::string>{"AlunoGrad", "AlunoMesc"};
+    auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
+    t12->addOutput(dfOut12);
 
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
@@ -1004,20 +1019,29 @@ void testeGeralEmap(){
     auto t22 = std::make_shared<CounterTransformer>();
     t22->addOutput(dfOut22);
 
+    auto t23 = std::make_shared<SalarySumTransformer>();
+    t23->addOutput(dfOut23);
+
+    auto t24 = std::make_shared<AgeSumTransformer>();
+    t24->addOutput(dfOut24);
+
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
 
-    e0->addNext(t1);
-    t1->addNext(t21);
-    t1->addNext(t22);
-//    t21->addNext(t3);
-//    t22->addNext(t3);
+    e0->addNext(t11);
+    e0->addNext(t12);
+    t11->addNext(t21);
+    t11->addNext(t22);
+    t11->addNext(t23);
+    t11->addNext(t24);
+    t21->addNext(t3);
+    t22->addNext(t3);
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
 
     std::cout << "Startando trigger...\n";
-    trigger.start(2);
+    trigger.start(3);
     std::cout << "Trigger finalizado.\n";
 
     // e0->execute();
@@ -1028,6 +1052,8 @@ void testeGeralEmap(){
 
     cout << "t2.1 dataframe after running:\n" << dfOut21->toString() << endl;
     cout << "t2.2 dataframe after running:\n" << dfOut22->toString() << endl;
+    cout << "t2.3 dataframe after running:\n" << dfOut23->toString() << endl;
+    cout << "t2.4 dataframe after running:\n" << dfOut24->toString() << endl;
     cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
 
 }
