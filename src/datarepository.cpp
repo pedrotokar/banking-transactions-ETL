@@ -50,11 +50,16 @@ void FileRepository::appendRow(const DataRow& data) {
 
 StrRow FileRepository::parseRow(const DataRow& line) const {
     StrRow parsedRow;
-    std::stringstream ss(line);
-    std::string item;
-    while (std::getline(ss, item, separator[0])) {
-        parsedRow.push_back(item);
+    parsedRow.reserve(3); // TODO: Adicionar um parametro pro tamanho
+
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = line.find(separator, start)) != std::string::npos) {
+        parsedRow.emplace_back(line.substr(start, end - start));
+        start = end + separator.length();
     }
+    parsedRow.emplace_back(line.substr(start));
     return parsedRow;
 }
 
