@@ -360,9 +360,21 @@ void teste2() {
 
 void teste4() {
     DataFrame df;
-    df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
-    df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
-    df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+    // ===== Agora podemos adicionar colunas de forma muito mais simples!
+    // ==================================================================
+
+    // df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
+    // df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
+    // df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+
+    // df.addColumn<std::string> ("STR", 0);
+    // df.addColumn<int>         ("INT", 1);
+    // df.addColumn<double>      ("DOUBLE", 2, -1.0);
+
+    df.addColumn<std::string> ("STR"); // não preciso passar a posição, usa nulo padrão global definido em types.h
+    df.addColumn<int>         ("INT", 2, -1); // mas se quiser passar a posição, precisa passar o valor padrão ;(
+    df.addColumn<double>      ("DOUBLE", -1); // -1.0 sera o valor padrão para a coluna double
+    // df.addColumn<double>      ("DOUBLE");
 
     FileRepository repo("data/teste_repo.csv", ",", false);
     string line;
@@ -373,6 +385,10 @@ void teste4() {
     }
 
     cout << df.toString() << endl;
+
+    auto col = df.getColumn("INT"); // busca a coluna pelo seu identificador
+
+    cout << "Coluna 0: " << col->toString() << endl;
 }
 
 int main() {

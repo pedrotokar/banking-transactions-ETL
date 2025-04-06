@@ -9,6 +9,9 @@
 #include <memory>
 #include <typeinfo>
 
+#include <unordered_map> // para identificação da posição das colunas
+// tomar cuidado com isso caso a gente implemente uma função de remover colunas
+
 #include <any>
 #include <variant>
 
@@ -31,6 +34,8 @@ public:
     virtual std::string getValue(size_t index) const = 0;
     virtual size_t size() const = 0;
     int getPosition() const { return position; }
+
+    virtual std::string toString() const;
 
     virtual void addAny(const std::any& value) = 0;
     virtual void addAny(const std::string& value) = 0;
@@ -76,13 +81,20 @@ class DataFrame {
 private:
     std::vector<std::shared_ptr<BaseColumn>> columns;
     size_t dataFrameSize = 0;
+    std::unordered_map<std::string, int> columnMap;
 
 public:
     void addColumn(std::shared_ptr<BaseColumn> column);
+    template <typename T>
+    void addColumn(std::string id, int pos, T NAValue = NullValue<T>::value());
+    template <typename T>
+    void addColumn(std::string id, T NAValue = NullValue<T>::value());
+
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
+    std::shared_ptr<BaseColumn> getColumn(const std::string &columnName) const;
     std::vector<std::string> getRow(size_t row) const;
     size_t size() {return dataFrameSize;};
-    std::string toString() const;
+    std::string toString(size_t n = 10) const;
 
     template <typename T>
     const std::vector<T>& getColumnData(size_t index) const;
@@ -124,12 +136,27 @@ size_t Column<T>::size() const {
 template <typename T>
 std::string Column<T>::toString() const {
     std::ostringstream oss;
-    oss << "BaseColumn '" << identifier << "' (position: " << position
+    oss << "Column: '" << identifier << "' (position: " << position
         << ", type: " << dataType << "):\n";
+    oss << "[ ";
     for (const auto &value : data) {
-        oss << "| " << value << " |\n";
+        oss << value << " ";
     }
+    oss << "]";
     return oss.str();
+}
+
+template <typename T>
+void DataFrame::addColumn(std::string id, int pos, T NAValue) {
+    auto column = std::make_shared<Column<T>>(id, pos, NAValue);
+    addColumn(column);
+}
+
+template <typename T>
+void DataFrame::addColumn(std::string id, T NAValue) {
+    size_t pos = columns.size();
+    auto column = std::make_shared<Column<T>>(id, pos, NAValue);
+    addColumn(column);
 }
 
 template <typename T>
