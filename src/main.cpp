@@ -1,10 +1,12 @@
+#include "dataframe.h"
+#include "datarepository.h"
+#include "task.h"
+#include "trigger.hpp"
+
 #include <iostream>
 #include <vector>
 #include <any>
 
-#include "dataframe.h"   
-#include "task.h"
-#include "trigger.hpp"
 
 using namespace std;
 
@@ -534,47 +536,13 @@ public:
 
 DataFrame* buildDFteste3() {
     //Dataframe inicial para testes
-    auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
-    ageColumn->addValue(25);
-    ageColumn->addValue(30);
-    ageColumn->addValue(45);
-    ageColumn->addValue(10);
-    ageColumn->addValue(11);
-    ageColumn->addValue(15);
-    ageColumn->addValue(90);
-    ageColumn->addValue(90);
-
-    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
-    nameColumn->addValue("Ana");
-    nameColumn->addValue("Bruno");
-    nameColumn->addValue("Carla");
-    nameColumn->addValue("Vitor");
-    nameColumn->addValue("Tokao");
-    nameColumn->addValue("Anderson");
-    nameColumn->addValue("Tomas");
-    nameColumn->addValue("Thiago");
-
-    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
-    salaryColumn->addValue(5000.0);
-    salaryColumn->addValue(7500.0);
-    salaryColumn->addValue(9000.17);
-    salaryColumn->addValue(100.12);
-    salaryColumn->addValue(1000000.0);
-    salaryColumn->addValue(6969.69);
-    salaryColumn->addValue(98.1);
-    salaryColumn->addValue(0.1);
-
-    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
-    extraIntColumn->addValue(101);
-    extraIntColumn->addValue(102);
-    extraIntColumn->addValue(103);
-    extraIntColumn->addValue(104);
-    extraIntColumn->addValue(105);
-    extraIntColumn->addValue(106);
-    extraIntColumn->addValue(107);
-    extraIntColumn->addValue(108);
-
     DataFrame* df = new DataFrame();
+    
+    auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
+
     df->addColumn(ageColumn);
     df->addColumn(nameColumn);
     df->addColumn(salaryColumn);
@@ -586,15 +554,18 @@ DataFrame* buildDFteste3() {
 void teste3() {
     DataFrame* df = buildDFteste3();
 
-    DataFrame* dfOut1 = new DataFrame();
-    auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
-    auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
-    auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
-    auto extraIntColumn2 = std::make_shared<Column<int>>("codigo", 3, -100);
-    dfOut1->addColumn(ageColumn2);
-    dfOut1->addColumn(nameColumn2);
-    dfOut1->addColumn(salaryColumn2);
-    dfOut1->addColumn(extraIntColumn2);
+    FileRepository* repository = new FileRepository("data/teste_1.csv", ",", true);
+
+    auto e0 = std::make_shared<Extractor>();
+
+    e0->addOutput(df);
+    e0->addRepo(repository);
+
+    e0->execute();
+
+    DataFrame* dfOut0 = buildDFteste3();
+
+    DataFrame* dfOut1 = buildDFteste3();
 
     DataFrame* dfOut2 = new DataFrame();
     auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
@@ -610,12 +581,15 @@ void teste3() {
     auto t0 = std::make_shared<DuplicateDFTransformer>();
     auto t1 = std::make_shared<DuplicateDFTransformer>();
     auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
-
+    
     //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
-    t0->addOutput(df);
+    t0->addOutput(dfOut0);
     t1->addOutput(dfOut1);
     t2->addOutput(dfOut2);
 
+    e0->addNext(t0);
+    cout << "Tamanho do nextTasks do e0: " << e0->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t0: " << t0->getPreviousTasks().size() << endl;
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
     t0->addNext(t1);
@@ -627,6 +601,9 @@ void teste3() {
 
     //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
     //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
+    t0->execute();
+    cout << "Output dataframe t0 after operation:\n" << dfOut0->toString() << endl;
+    
     t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
 
@@ -634,6 +611,23 @@ void teste3() {
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
 }
 
+void teste4() {
+    DataFrame df;
+    df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
+    df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
+    df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+
+    FileRepository repo("data/teste_repo.csv", ",", false);
+    string line;
+    while (true) {
+        auto line = repo.getRow();
+        if (!repo.hasNext()) { break; }
+        df.addRow(repo.parseRow(line));
+    }
+
+    cout << df.toString() << endl;
+
+}
 void testeTrigger(){
     DataFrame* df = buildDFteste3();
 
@@ -750,6 +744,7 @@ void testeTrigger2(){
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
     cout << "Output dataframe t3 after operation:\n" << dfOut3->toString() << endl;
+
 }
 
 int main() {

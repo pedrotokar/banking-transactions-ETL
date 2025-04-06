@@ -1,5 +1,6 @@
 #include "task.h"
 #include "dataframe.h"
+#include "datarepository.h"
 #include <memory>
 #include <vector>
 
@@ -60,3 +61,22 @@ void Transformer::execute(){
     transform(outputDFs, inputs);
     std::cout << "called transform" << std::endl;
 }
+
+void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   
+    while (true) {
+        DataRow row = repository->getRow();
+
+        if (!repository->hasNext()) break;
+
+        auto parsedRow = repository->parseRow(row);
+        output->addRow(parsedRow);
+    };
+};
+
+void Extractor::execute(){
+    DataFrame* outDF = outputDFs.at(0);
+    extract(outDF, repository);
+    std::cout << outDF->toString() << std::endl;
+
+    addOutput(outDF);
+};

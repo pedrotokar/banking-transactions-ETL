@@ -10,9 +10,10 @@
 #include <typeinfo>
 
 #include <any>
+#include <variant>
 
 #include "utils.h"
-
+#include "types.h"
 
 class BaseColumn {
 protected:
@@ -33,6 +34,7 @@ public:
 
     virtual void addAny(const std::any& value) = 0;
     virtual void addAny(const std::string& value) = 0;
+    virtual void addAny(const VarCell& value) = 0;
     virtual void appendNA() {};
 };
 
@@ -49,6 +51,10 @@ public:
 
     void addAny(const std::any& value) override {
         data.push_back(std::any_cast<T>(value));
+    }
+
+    void addAny(const VarCell& value) override {
+        data.push_back(std::get<T>(value));
     }
 
     void addAny(const std::string& value) override {
@@ -86,6 +92,7 @@ public:
 
     void addRow(const std::vector<std::any> &row);
     void addRow(const std::vector<std::string> &row);
+    void addRow(const std::vector<VarCell> &row);
 };
 
 
