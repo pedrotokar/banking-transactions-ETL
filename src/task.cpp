@@ -77,4 +77,6 @@ void Extractor::execute(){
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
     std::cout << outDF->toString() << std::endl;
+
+    addOutput(outDF);
 };
