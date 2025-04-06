@@ -372,9 +372,10 @@ void teste4() {
     // df.addColumn<double>      ("DOUBLE", 2, -1.0);
 
     df.addColumn<std::string> ("STR"); // não preciso passar a posição, usa nulo padrão global definido em types.h
-    df.addColumn<int>         ("INT", 2, -1); // mas se quiser passar a posição, precisa passar o valor padrão ;(
-    df.addColumn<double>      ("DOUBLE", -1); // -1.0 sera o valor padrão para a coluna double
-    // df.addColumn<double>      ("DOUBLE");
+    df.addColumn<int>         ("INT", 1, -1); // mas se quiser passar a posição, precisa passar o valor padrão ;(
+    df.addColumn<double>      ("DOUBLE", -1, -100); // se quiser nulo custom e pos automatica tem que colocar pos = -1 aqui
+
+    cout << df.getColumn("DOUBLE")->getPosition() << endl;
 
     FileRepository repo("data/teste_repo.csv", ",", false);
     string line;
@@ -386,10 +387,23 @@ void teste4() {
 
     cout << df.toString() << endl;
 
-    auto col = df.getColumn("INT"); // busca a coluna pelo seu identificador
+    auto col = df.getColumn("DOUBLE"); // busca a coluna pelo seu identificador
 
     cout << "Coluna 0: " << col->toString() << endl;
-}
+
+    Column<int> colInt("INT", -1, -1);
+
+    cout << "Coluna 1: " << colInt.toString() << endl;
+
+    auto df_cp = df.emptyCopy(); // faz uma copia vazia do dataframe, com as colunas definidas
+    cout << "Df copiado vazio: " << endl;
+    cout << df_cp->toString() << endl;
+    cout << df_cp->getColumn("DOUBLE")->toString() << endl;
+
+    auto df_cp2 = df.emptyCopy({"STR", "INT"}); // faz uma copia vazia do dataframe, de colunas especificas
+    cout << "Df copiado parcial vazio: " << endl;
+    cout << df_cp2->toString() << endl;
+ }
 
 int main() {
     teste4();

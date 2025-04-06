@@ -50,7 +50,7 @@ void FileRepository::appendRow(const DataRow& data) {
 
 StrRow FileRepository::parseRow(const DataRow& line) const {
     StrRow parsedRow;
-    parsedRow.reserve(3); // TODO: Adicionar um parametro pro tamanho
+    parsedRow.reserve(3); /// TODO: Adicionar um parametro pro tamanho
 
     size_t start = 0;
     size_t end = 0;

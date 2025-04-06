@@ -143,3 +143,22 @@ std::string DataFrame::toString(size_t n) const {
     }
     return oss.str();
 }
+
+std::shared_ptr<DataFrame> DataFrame::emptyCopy() {
+    auto df = std::make_shared<DataFrame>();
+    for (const auto& col : columns) {
+        df->addColumn(col->cloneEmpty());
+    }
+    return df;
+}
+
+std::shared_ptr<DataFrame> DataFrame::emptyCopy(std::vector<std::string> colNames) {
+    auto df = std::make_shared<DataFrame>();
+    for (const auto& colName : colNames) {
+        auto col = getColumn(colName);
+        if (col) {
+            df->addColumn(col->cloneEmpty());
+        }
+    }
+    return df;
+}

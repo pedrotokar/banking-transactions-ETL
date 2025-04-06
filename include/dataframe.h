@@ -31,6 +31,8 @@ public:
     std::string getIdentifier() const;
     std::string getTypeName() const;
 
+    void setPosition(int pos) { position = pos; }
+    
     virtual std::string getValue(size_t index) const = 0;
     virtual size_t size() const = 0;
     int getPosition() const { return position; }
@@ -41,6 +43,8 @@ public:
     virtual void addAny(const std::string& value) = 0;
     virtual void addAny(const VarCell& value) = 0;
     virtual void appendNA() {};
+
+    virtual std::shared_ptr<BaseColumn> cloneEmpty() const = 0;
 };
 
 template <typename T>
@@ -50,7 +54,7 @@ private:
     T NAValue;
 
 public:
-    Column(const std::string &id, int pos, T NAValue);
+    Column(const std::string &id, int pos = -1, T NAValue = NullValue<T>::value());
 
     void addValue(const T &value);
 
@@ -74,6 +78,10 @@ public:
     const std::vector<T>& getData() const { return data; }
     
     void appendNA() override;
+
+    std::shared_ptr<BaseColumn> cloneEmpty() const override {
+        return std::make_shared<Column<T>>(identifier, position, NAValue);
+    }
 };
 
 
@@ -86,9 +94,7 @@ private:
 public:
     void addColumn(std::shared_ptr<BaseColumn> column);
     template <typename T>
-    void addColumn(std::string id, int pos, T NAValue = NullValue<T>::value());
-    template <typename T>
-    void addColumn(std::string id, T NAValue = NullValue<T>::value());
+    void addColumn(std::string id, int pos = -1, T NAValue = NullValue<T>::value());
 
     std::shared_ptr<BaseColumn> getColumn(size_t index) const;
     std::shared_ptr<BaseColumn> getColumn(const std::string &columnName) const;
@@ -105,12 +111,15 @@ public:
     void addRow(const std::vector<std::any> &row);
     void addRow(const std::vector<std::string> &row);
     void addRow(const std::vector<VarCell> &row);
+
+    std::shared_ptr<DataFrame> emptyCopy();
+    std::shared_ptr<DataFrame> emptyCopy(std::vector<std::string> colNames);
 };
 
 
 template <typename T>
 Column<T>::Column(const std::string &id, int pos, T NAValue)
-    : BaseColumn(id, pos, typeid(T).name()), NAValue(NAValue){
+    : BaseColumn(id, pos, typeid(T).name()), NAValue(NAValue) {
 }
 
 template <typename T>
@@ -148,13 +157,7 @@ std::string Column<T>::toString() const {
 
 template <typename T>
 void DataFrame::addColumn(std::string id, int pos, T NAValue) {
-    auto column = std::make_shared<Column<T>>(id, pos, NAValue);
-    addColumn(column);
-}
-
-template <typename T>
-void DataFrame::addColumn(std::string id, T NAValue) {
-    size_t pos = columns.size();
+    if (pos == -1) { pos = columns.size(); }
     auto column = std::make_shared<Column<T>>(id, pos, NAValue);
     addColumn(column);
 }
@@ -177,5 +180,7 @@ template <typename T>
 T DataFrame::getElement(size_t rowIdx, size_t colIdx) const {
     return getColumnData<T>(colIdx)[rowIdx];
 }
+
+/// TODO: melhorar verificação das posições
 
 #endif
