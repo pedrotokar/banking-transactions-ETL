@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := all
 
 SRC_DIR = src
 INCLUDE_DIR = include

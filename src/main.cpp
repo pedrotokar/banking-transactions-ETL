@@ -1,6 +1,12 @@
 #include <iostream>
-#include "dataframe.h"   
-#include "task.h"    
+#include "dataframe.h"
+#include "datarepository.h"
+#include "task.h"
+
+#include <vector>
+#include <any>
+
+using namespace std;
 
 class PrintColumnInfoTransformer : public Transformer {
 public:
@@ -77,7 +83,7 @@ public:
 
         // Cria um novo DataFrame com a soma
         DataFrame* outDf = new DataFrame();
-        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0);
+        auto sumColumn = std::make_shared<Column<int>>("age_sum", 0, -1);
         sumColumn->addValue(sum);
         outDf->addColumn(sumColumn);
 
@@ -119,7 +125,7 @@ public:
 
         // Cria a coluna "salary_x2"
         DataFrame* outDf = new DataFrame();
-        auto doubledSalaryCol = std::make_shared<Column<double>>("salary_x2", 0);
+        auto doubledSalaryCol = std::make_shared<Column<double>>("salary_x2", 0, -1.0);
 
         auto salaryCol = df->getColumn(salaryColIndex);
         for (size_t i = 0; i < salaryCol->size(); i++) {
@@ -138,28 +144,27 @@ public:
     }
 };
 
-int main()
-{
+void teste1() {
     // ===========================
     // 1) Monta o DataFrame
     // ===========================
-    auto ageColumn = std::make_shared<Column<int>>("age", 0);
+    auto ageColumn = std::make_shared<Column<int>>("age", 0, -1);
     ageColumn->addValue(25);
     ageColumn->addValue(30);
     ageColumn->addValue(45);
 
-    auto nameColumn = std::make_shared<Column<std::string>>("name", 1);
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
     nameColumn->addValue("Ana");
     nameColumn->addValue("Bruno");
     nameColumn->addValue("Carla");
 
-    auto salaryColumn = std::make_shared<Column<double>>("salary", 2);
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1.0);
     salaryColumn->addValue(5000.0);
     salaryColumn->addValue(7500.0);
     salaryColumn->addValue(9000.0);
 
     // Exemplo de coluna extra (int)
-    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3);
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
     extraIntColumn->addValue(101);
     extraIntColumn->addValue(102);
     extraIntColumn->addValue(103);
@@ -284,5 +289,93 @@ int main()
         }
     }
 
+    std::cout << "\n== Testando getColumnData e getElement ==\n";
+
+    auto data = df.getColumnData<std::string>(1);
+    auto valor = df.getElement<double>(1, 2);
+
+    std::cout << "Valor (1, 2): " << valor << std::endl;
+
+    std::cout << "Dados da coluna 1:\n";
+    for (const auto& name : data) {
+        std::cout << name << std::endl;
+    }
+}
+
+void teste2() {
+    auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
+    ageColumn->addValue(25);
+    ageColumn->addValue(30);
+    ageColumn->addValue(45);
+
+    auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
+    nameColumn->addValue("Ana");
+    nameColumn->addValue("Bruno");
+    nameColumn->addValue("Carla");
+
+        auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    salaryColumn->addValue(5000.42);
+    salaryColumn->addValue(7500.42);
+    salaryColumn->addValue(9000.42);
+
+    auto extraIntColumn = std::make_shared<Column<int>>("codigo", 3, -100);
+    extraIntColumn->addValue(101);
+    extraIntColumn->addValue(102);
+    extraIntColumn->addValue(103);
+    extraIntColumn->addValue(103);
+
+    DataFrame df;
+    df.addColumn(ageColumn);
+    df.addColumn(nameColumn);
+    df.addColumn(salaryColumn);
+
+    cout << "DataFrame before adding a new row:\n" << df.toString() << endl;
+
+
+    vector<any> row {42, nullptr, 5000.0};
+
+    df.addRow(row);
+
+    cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+
+    df.addColumn(extraIntColumn);
+    cout << "DataFrame after adding a new column:\n" << df.toString() << endl;
+
+    vector<any> row2 {42, string("John"), 5000.0, nullptr};
+
+    df.addRow(row2);
+    cout << "DataFrame after adding a new row:\n" << df.toString() << endl;
+
+    cout << "Testando função de adicionar row de strings com conversão automatica" << endl;
+    // A operação tem que ser por linha pra garantir que o registros estejam corretos na hora de paralelizar
+    // Se paralelizar pela leitura da coluna pode acontecer da ordem não ser correta
+    // Vai evitar criar um mutex pra cada coluna
+    // Assumo que o maior gargalo seja quebrar as linhas no separador
+    // Assumo que os tipos da coluna são 100% consistentes
+    
+    vector<string> row3 {"42", "John", "5000.0", "123"};
+    df.addRow(row3);
+    cout << "DataFrame after adding a new row with strings:\n" << df.toString() << endl;
+}
+
+void teste4() {
+    DataFrame df;
+    df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
+    df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
+    df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+
+    FileRepository repo("data/teste_repo.csv", ",", false);
+    string line;
+    while (true) {
+        auto line = repo.getRow();
+        if (!repo.hasNext()) { break; }
+        df.addRow(repo.parseRow(line));
+    }
+
+    cout << df.toString() << endl;
+}
+
+int main() {
+    teste4();
     return 0;
 }
