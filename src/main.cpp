@@ -1,10 +1,12 @@
-#include <iostream>
 #include "dataframe.h"
 #include "datarepository.h"
 #include "task.h"
+#include "trigger.hpp"
 
+#include <iostream>
 #include <vector>
 #include <any>
+
 
 using namespace std;
 
@@ -139,6 +141,69 @@ public:
         std::cout << "[SumAgeTransformer] Soma da coluna 'age': " << sum << "\n";
     }
 };
+
+class SumAgeTransformerTestInterface_nosense : public Transformer {
+    public:
+        void transform(std::vector<DataFrame*>& outputs,
+                        const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+        {
+            if (inputs.empty()) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] Nenhum DataFrame na entrada.\n";
+                return;
+            }
+    
+            DataFrame* df = inputs[0].second;
+            if (!df) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] DataFrame nulo.\n";
+                return;
+            }
+    
+            // Procura a coluna "age"
+            int ageColIndex = -1;
+            for (size_t i = 0; i < 3; i++) {
+                auto col = df->getColumn(i);
+                if (col->getIdentifier() == "age") {
+                    ageColIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+    
+            if (ageColIndex < 0) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] Coluna 'age' não encontrada.\n";
+                return;
+            }
+    
+            // Soma todos os f(age_i) = #{x: x<= 1e6 e x primo e x=k*age_i-1 pra k natural} para cada i na coluna "age"
+            int sum = 0;
+            auto ageCol = df->getColumn(ageColIndex);
+            for (size_t i = 0; i < ageCol->size(); i++) {
+                int aux = std::stoi(ageCol->getValue(i));
+    
+                for(int j = aux; j < (int)1e6; j+=aux) {
+                    bool prime = true;
+    
+                    for(int k = 2; k*k <= (j-1); k++) {
+                        if((j-1) % k == 0) {
+                            prime = false;
+                            break;
+                        }
+                    }
+    
+                    if (prime) {
+                        sum += 1;
+                    }
+                }
+            }
+    
+            //Adiciona ao DataFrame de saída a soma
+            DataFrame* outDf = outputs.at(0);
+    //        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
+            std::vector<any> row {sum};
+            outDf->addRow(row);
+    
+            std::cout << "[SumAgeTransformer] Soma da coluna 'age': " << sum << "\n";
+        }
+    };
 
 class DoubleSalaryTransformer : public Transformer {
 public:
@@ -469,7 +534,7 @@ public:
     }
 };
 
-void teste3() {
+DataFrame* buildDFteste3() {
     //Dataframe inicial para testes
     DataFrame* df = new DataFrame();
     
@@ -483,8 +548,14 @@ void teste3() {
     df->addColumn(salaryColumn);
     df->addColumn(extraIntColumn);
 
+    return df;
+}
+
+void teste3() {
+    DataFrame* df = buildDFteste3();
+
     FileRepository* repository = new FileRepository("data/teste_1.csv", ",", true);
-    
+
     auto e0 = std::make_shared<Extractor>();
 
     e0->addOutput(df);
@@ -492,17 +563,9 @@ void teste3() {
 
     e0->execute();
 
-    DataFrame* dfOut0 = new DataFrame();
-    dfOut0->addColumn(ageColumn);
-    dfOut0->addColumn(nameColumn);
-    dfOut0->addColumn(salaryColumn);
-    dfOut0->addColumn(extraIntColumn);
+    DataFrame* dfOut0 = buildDFteste3();
 
-    DataFrame* dfOut1 = new DataFrame();
-    dfOut1->addColumn(ageColumn);
-    dfOut1->addColumn(nameColumn);
-    dfOut1->addColumn(salaryColumn);
-    dfOut1->addColumn(extraIntColumn);
+    DataFrame* dfOut1 = buildDFteste3();
 
     DataFrame* dfOut2 = new DataFrame();
     auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
@@ -563,9 +626,136 @@ void teste4() {
     }
 
     cout << df.toString() << endl;
+
+}
+void testeTrigger(){
+    DataFrame* df = buildDFteste3();
+
+    DataFrame* dfOut1 = new DataFrame();
+    auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
+    auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
+    auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
+    auto extraIntColumn2 = std::make_shared<Column<int>>("codigo", 3, -100);
+    dfOut1->addColumn(ageColumn2);
+    dfOut1->addColumn(nameColumn2);
+    dfOut1->addColumn(salaryColumn2);
+    dfOut1->addColumn(extraIntColumn2);
+
+    DataFrame* dfOut2 = new DataFrame();
+    auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
+    dfOut2->addColumn(ageSumColumn);
+
+    cout << "Initial dataframe:\n" << df->toString() << endl;
+
+    cout << "Output dataframe t1:\n" << dfOut1->toString() << endl;
+
+    cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
+
+    //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
+    auto t0 = std::make_shared<DuplicateDFTransformer>();
+    auto t1 = std::make_shared<DuplicateDFTransformer>();
+    auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
+
+    //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
+    t0->addOutput(df);
+    t1->addOutput(dfOut1);
+    t2->addOutput(dfOut2);
+
+    //T0 é um mock - representa um tratador que já foi completo anteriormente
+    //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
+    t0->addNext(t1);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    t1->addNext(t2);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+
+    
+    RequestTrigger trigger;
+    trigger.addExtractor(t0);
+
+    std::cout << "Startando trigger...\n";
+    trigger.start(1);
+    std::cout << "Trigger finalizado.\n";
+
+    cout << "Output dataframe t0 after operation:\n" << df->toString() << endl;
+    cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
+    cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
+}
+
+void testeTrigger2(){
+    DataFrame* df = buildDFteste3();
+
+    DataFrame* dfOut1 = new DataFrame();
+    auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
+    auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
+    auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
+    auto extraIntColumn2 = std::make_shared<Column<int>>("codigo", 3, -100);
+    dfOut1->addColumn(ageColumn2);
+    dfOut1->addColumn(nameColumn2);
+    dfOut1->addColumn(salaryColumn2);
+    dfOut1->addColumn(extraIntColumn2);
+
+    DataFrame* dfOut2 = new DataFrame();
+    auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
+    dfOut2->addColumn(ageSumColumn);
+
+    DataFrame* dfOut3 = new DataFrame();
+    auto ageSumColumn2 = std::make_shared<Column<int>>("ageSum", 0, -1);
+    dfOut3->addColumn(ageSumColumn2);
+
+    cout << "Initial dataframe:\n" << df->toString() << endl;
+
+    cout << "Output dataframe t1:\n" << dfOut1->toString() << endl;
+
+    cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
+
+    //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
+    auto t0 = std::make_shared<DuplicateDFTransformer>();
+    auto t1 = std::make_shared<DuplicateDFTransformer>();
+    auto t2 = std::make_shared<SumAgeTransformerTestInterface_nosense>();
+    auto t3 = std::make_shared<SumAgeTransformerTestInterface_nosense>();
+
+    //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
+    t0->addOutput(df);
+    t1->addOutput(dfOut1);
+    t2->addOutput(dfOut2);
+    t3->addOutput(dfOut3);
+
+    //T0 é um mock - representa um tratador que já foi completo anteriormente
+    //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
+    t0->addNext(t1);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    t1->addNext(t2);
+    t1->addNext(t3);
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t3: " << t3->getPreviousTasks().size() << endl;
+    
+    RequestTrigger trigger;
+    trigger.addExtractor(t0);
+  
+    std::cout << "Startando trigger...\n";
+    trigger.start(2);
+    std::cout << "Trigger finalizado.\n";
+
+    cout << "Output dataframe t0 after operation:\n" << df->toString() << endl;
+    cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
+    cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
+    cout << "Output dataframe t3 after operation:\n" << dfOut3->toString() << endl;
+
 }
 
 int main() {
-    teste3();
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    testeTrigger2();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+
     return 0;
 }
