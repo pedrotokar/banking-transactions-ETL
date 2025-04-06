@@ -596,6 +596,10 @@ void teste3() {
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     t1->addNext(t2);
+
+    auto l0 = std::make_shared<Loader>();
+    t1->addNext(l0);
+
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
 
@@ -606,6 +610,9 @@ void teste3() {
     
     t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
+
+    l0->addRepo(repository);
+    l0->execute();
 
     t2->execute();
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
@@ -749,13 +756,15 @@ void testeTrigger2(){
 
 int main() {
 
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
 
-    testeTrigger2();
+    // testeTrigger2();
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> elapsed = end - start;
+    // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+
+    teste3();
 
     return 0;
 }
