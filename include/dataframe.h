@@ -74,8 +74,8 @@ public:
 
 class DataFrame {
 private:
-    std::vector<std::shared_ptr<BaseColumn>> columns;
     size_t dataFrameSize = 0;
+    std::vector<std::shared_ptr<BaseColumn>> columns;
 
 public:
     void addColumn(std::shared_ptr<BaseColumn> column);
@@ -148,7 +148,7 @@ const std::vector<T>& DataFrame::getColumnData(size_t index) const {
 
 template <typename T>
 T DataFrame::getElement(size_t rowIdx, size_t colIdx) const {
-    return getColumnData<T>(colIdx)[rowIdx];
+    return getColumnData<T>(colIdx).at(rowIdx);
 }
 
 #endif
