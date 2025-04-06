@@ -582,7 +582,28 @@ void teste4() {
     cout << df.toString() << endl;
 }
 
+void teste5(){
+    DataFrame* df = new DataFrame();
+
+    auto column1 = std::make_shared<Column<std::string>>("STR", 0, "");
+    auto column2 = std::make_shared<Column<int>>("INT", 1, -1);
+    auto column3 = std::make_shared<Column<double>>("DOUBLE", 2, -1.0);
+    
+    df->addColumn(column1);
+    df->addColumn(column2);
+    df->addColumn(column3);
+
+    FileRepository* repository = new FileRepository("data/teste_repo.csv", ",", true);
+    
+    auto e0 = std::make_shared<Extractor>();
+
+    e0->addOutput(df);
+    e0->addRepo(repository);
+
+    e0->execute();
+}
+
 int main() {
-    teste4();
+    teste5();
     return 0;
 }

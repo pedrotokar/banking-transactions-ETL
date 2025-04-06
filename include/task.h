@@ -5,7 +5,13 @@
 #include <mutex>
 #include <utility>
 #include <memory>
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <atomic>
 #include "dataframe.h"
+#include "datarepository.h"
+#include "types.h"
 
 struct OutputSpec {};
 
@@ -38,6 +44,17 @@ public:
                            const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) = 0;
     //Função virtual que será varia entre transformer, extractor e loader
     void execute() override;
+};
+
+class Extractor : public Task {
+public:
+    void extract(DataFrame* & output, FileRepository* & repository);
+
+    void addRepo(FileRepository* repo){ repository = repo;};
+
+    void execute();
+private:
+    FileRepository* repository;
 };
 
 #endif
