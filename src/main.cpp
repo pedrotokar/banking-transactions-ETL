@@ -140,6 +140,69 @@ public:
     }
 };
 
+class SumAgeTransformerTestInterface_nosense : public Transformer {
+    public:
+        void transform(std::vector<DataFrame*>& outputs,
+                        const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+        {
+            if (inputs.empty()) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] Nenhum DataFrame na entrada.\n";
+                return;
+            }
+    
+            DataFrame* df = inputs[0].second;
+            if (!df) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] DataFrame nulo.\n";
+                return;
+            }
+    
+            // Procura a coluna "age"
+            int ageColIndex = -1;
+            for (size_t i = 0; i < 3; i++) {
+                auto col = df->getColumn(i);
+                if (col->getIdentifier() == "age") {
+                    ageColIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+    
+            if (ageColIndex < 0) {
+                std::cout << "[SumAgeTransformerTestInterface_nosense] Coluna 'age' não encontrada.\n";
+                return;
+            }
+    
+            // Soma todos os f(age_i) = #{x: x<= 1e6 e x primo e x=k*age_i-1 pra k natural} para cada i na coluna "age"
+            int sum = 0;
+            auto ageCol = df->getColumn(ageColIndex);
+            for (size_t i = 0; i < ageCol->size(); i++) {
+                int aux = std::stoi(ageCol->getValue(i));
+    
+                for(int j = aux; j < (int)1e6; j+=aux) {
+                    bool prime = true;
+    
+                    for(int k = 2; k*k <= (j-1); k++) {
+                        if((j-1) % k == 0) {
+                            prime = false;
+                            break;
+                        }
+                    }
+    
+                    if (prime) {
+                        sum += 1;
+                    }
+                }
+            }
+    
+            //Adiciona ao DataFrame de saída a soma
+            DataFrame* outDf = outputs.at(0);
+    //        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
+            std::vector<any> row {sum};
+            outDf->addRow(row);
+    
+            std::cout << "[SumAgeTransformer] Soma da coluna 'age': " << sum << "\n";
+        }
+    };
+
 class DoubleSalaryTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -656,8 +719,8 @@ void testeTrigger2(){
     //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
     auto t0 = std::make_shared<DuplicateDFTransformer>();
     auto t1 = std::make_shared<DuplicateDFTransformer>();
-    auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
-    auto t3 = std::make_shared<SumAgeTransformerTestInterface>();
+    auto t2 = std::make_shared<SumAgeTransformerTestInterface_nosense>();
+    auto t3 = std::make_shared<SumAgeTransformerTestInterface_nosense>();
 
     //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
     t0->addOutput(df);
@@ -680,7 +743,7 @@ void testeTrigger2(){
     trigger.addExtractor(t0);
   
     std::cout << "Startando trigger...\n";
-    trigger.start(1);
+    trigger.start(2);
     std::cout << "Trigger finalizado.\n";
 
     cout << "Output dataframe t0 after operation:\n" << df->toString() << endl;
