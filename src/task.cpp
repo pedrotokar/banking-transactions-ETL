@@ -57,9 +57,9 @@ void Transformer::execute(){
         }
     }
 
-    std::cout << "calling transform" << std::endl;
+//    std::cout << "calling transform" << std::endl;
     transform(outputDFs, inputs);
-    std::cout << "called transform" << std::endl;
+//    std::cout << "called transform" << std::endl;
 }
 
 void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   
@@ -76,7 +76,7 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
 void Extractor::execute(){
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
-    std::cout << outDF->toString() << std::endl;
+//    std::cout << outDF->toString() << std::endl;
 
-    addOutput(outDF);
+//    addOutput(outDF);
 };
