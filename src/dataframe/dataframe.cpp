@@ -75,6 +75,14 @@ std::shared_ptr<BaseColumn> DataFrame::getColumn(size_t index) const {
     return columns[index];
 }
 
+const std::vector<std::string> DataFrame::getHeader() const {
+    std::vector<std::string> header;
+    for (const auto& column : columns) {
+        header.push_back(column->getIdentifier());
+    }
+    return header;
+}
+
 std::vector<std::string> DataFrame::getRow(size_t row) const {
     std::vector<std::string> rowData;
     if (columns.empty())
