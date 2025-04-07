@@ -81,21 +81,18 @@ void Extractor::execute(){
     std::cout << outDF->toString() << std::endl;
 };
 
-void Loader::recreateRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
-    DataFrame* dfInput = inputs[0].second;
-    for (size_t i = 0; i < dfInput->size(); i++)
-    {
-        return;
-    }
-    
+void Loader::createRepo(DataFrame* & dfInput, FileRepository* & repository) {   
+    repository->clear();
+    StrRow header = dfInput->getHeader();
+    repository->appendHeader(header);
+    addRows(dfInput, repository);
 };
 
-void Loader::actualizeRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
+void Loader::actualizeRepo(DataFrame* & dfInput, FileRepository* & repository) {   
     return;    
 };
 
-void Loader::addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
-    DataFrame* dfInput = inputs[0].second;
+void Loader::addRows(DataFrame* & dfInput, FileRepository* & repository) {   
     for (size_t i = 0; i < dfInput->size(); i++)
     {
         std::vector<std::string> row = dfInput->getRow(i);
@@ -122,8 +119,7 @@ void Loader::execute(){
             inputs.push_back(pair);
         }
     }
+    DataFrame* dfInput = inputs[0].second;
 
-    std::cout << inputs[0].second->toString() << std::endl;
-    addRows(inputs, repository);
-    std::cout << "called transform" << std::endl;
+    createRepo(dfInput, repository);
 };

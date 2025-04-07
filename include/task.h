@@ -61,9 +61,9 @@ private:
 class Loader : public Task {
 public:
     virtual ~Loader() = default;
-    void recreateRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
-    void actualizeRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
-    void addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
+    void createRepo(DataFrame* & dfInput, FileRepository* & repository);
+    void actualizeRepo(DataFrame* & dfInput, FileRepository* & repository);
+    void addRows(DataFrame* & dfInput, FileRepository* & repository);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
