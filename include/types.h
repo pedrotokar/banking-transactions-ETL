@@ -6,6 +6,33 @@
 #include <variant>
 #include <any>
 
+#include <limits>
+#include <cmath> // std::nan
+
+
+template<typename T>
+struct NullValue {
+    static T value() {
+        static_assert(sizeof(T) == 0, "NullValue not defined for this type, please define the specialization.");
+    }
+};
+
+template<>
+struct NullValue<std::string> {
+    static std::string value() { return ""; }
+};
+
+template<>
+struct NullValue<int> {
+    static int value() { return std::numeric_limits<int>::min(); }
+};
+
+template<>
+struct NullValue<double> {
+    static double value() { return std::numeric_limits<double>::quiet_NaN(); }
+};
+
+
 using VarCell = std::variant<int, double, std::string, std::nullptr_t>;;
 
 using VarRow = std::vector<VarCell>;

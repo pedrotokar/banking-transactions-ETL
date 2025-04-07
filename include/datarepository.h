@@ -21,7 +21,7 @@ public:
     virtual ~DataRepository() = default;
 
     virtual DataRow getRow() = 0;
-    // TODO: REVIEW parseRow() RETURN IMPLEMENTATION;
+    /// TODO: REVIEW parseRow() RETURN IMPLEMENTATION;
     // virtual WildRow parseRow(const DataRow& line) const = 0;
 
     virtual void appendRow(const DataRow& data) = 0;
@@ -42,7 +42,7 @@ private:
     size_t totalLines;
     std::string currLine;
     
-    // TODO: change flag implementation
+    /// TODO: change flag implementation
     bool hasNextLine = true; // Flag: the current line is !EOF (?) terrible name I know 
     
 public:

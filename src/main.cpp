@@ -301,9 +301,22 @@ void teste3() {
 
 void teste4() {
     DataFrame df;
-    df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
-    df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
-    df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+    // ===== Agora podemos adicionar colunas de forma muito mais simples!
+    // ==================================================================
+
+    // df.addColumn(std::make_shared<Column<std::string>>("STR", 0, ""));
+    // df.addColumn(std::make_shared<Column<int>>("INT", 1, -1));
+    // df.addColumn(std::make_shared<Column<double>>("DOUBLE", 2, -1.0));
+
+    // df.addColumn<std::string> ("STR", 0);
+    // df.addColumn<int>         ("INT", 1);
+    // df.addColumn<double>      ("DOUBLE", 2, -1.0);
+
+    df.addColumn<std::string> ("STR"); // não preciso passar a posição, usa nulo padrão global definido em types.h
+    df.addColumn<int>         ("INT", 1, -1); // mas se quiser passar a posição, precisa passar o valor padrão ;(
+    df.addColumn<double>      ("DOUBLE", -1, -100); // se quiser nulo custom e pos automatica tem que colocar pos = -1 aqui
+
+    cout << df.getColumn("DOUBLE")->getPosition() << endl;
 
     FileRepository repo("data/teste_repo.csv", ",", false);
     string line;
@@ -315,7 +328,24 @@ void teste4() {
 
     cout << df.toString() << endl;
 
+    auto col = df.getColumn("DOUBLE"); // busca a coluna pelo seu identificador
+
+    cout << "Coluna 0: " << col->toString() << endl;
+
+    Column<int> colInt("INT", -1, -1);
+
+    cout << "Coluna 1: " << colInt.toString() << endl;
+
+    auto df_cp = df.emptyCopy(); // faz uma copia vazia do dataframe, com as colunas definidas
+    cout << "Df copiado vazio: " << endl;
+    cout << df_cp->toString() << endl;
+    cout << df_cp->getColumn("DOUBLE")->toString() << endl;
+
+    auto df_cp2 = df.emptyCopy({"STR", "INT"}); // faz uma copia vazia do dataframe, de colunas especificas
+    cout << "Df copiado parcial vazio: " << endl;
+    cout << df_cp2->toString() << endl;
 }
+
 void testeTrigger(){
     DataFrame* df = buildDFteste3();
 
@@ -768,13 +798,12 @@ void testeGeralEmap(int nThreads = 1){
 
 }
 
+
 int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    //testeTrigger2();
     testeGeralEmap(1);
-    //teste3();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
