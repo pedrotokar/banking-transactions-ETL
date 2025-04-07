@@ -2,6 +2,7 @@
 #include "datarepository.h"
 #include "types.h"
 #include <sstream>
+#include <iostream>
 
 FileRepository::FileRepository(const std::string& fname,
                                const std::string& sep,
@@ -42,43 +43,27 @@ DataRow FileRepository::getRow() {
 }
 
 void FileRepository::appendRow(const DataRow& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    if (!outputFile.is_open()) {
+    if (!file.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    outputFile << data << "\n";
+    file << data << "\n";
 }
 
 void FileRepository::appendRow(const std::vector<std::string>& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    std::string dataStr;
-    std::ostringstream oss;
-    for (size_t i=0; i < data.size(); ++i) {
-        if (i) {
-            oss << ",";
-        }
-        oss << data[i];
-    }
-    if (!outputFile.is_open()) {
+    if (!file.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    outputFile << "\n" << oss.str();
+    /// TODO: Verificar estado do file, tem algo estranho rolando aqui
+    file.clear(); 
+    for (size_t i=0; i < data.size(); ++i) {
+        if (i)  file << ",";
+        file << data[i];
+    }
+    file << "\n";
 }
 
 void FileRepository::appendHeader(const std::vector<std::string>& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    std::string dataStr;
-    std::ostringstream oss;
-    for (size_t i=0; i < data.size(); ++i) {
-        if (i) {
-            oss << ",";
-        }
-        oss << data[i];
-    }
-    if (!outputFile.is_open()) {
-        throw std::runtime_error("Failed opening file: " + fileName);
-    }
-    outputFile << oss.str();
+    appendRow(data);
 }
 
 StrRow FileRepository::parseRow(const DataRow& line) const {

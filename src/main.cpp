@@ -799,11 +799,15 @@ void testeGeralEmap(int nThreads = 1){
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
+    int nThreads = 1;
+    if (argc > 1) {
+        nThreads = std::stoi(argv[1]);
+    }
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    testeGeralEmap(1);
+    testeGeralEmap(nThreads);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
