@@ -65,6 +65,22 @@ void FileRepository::appendRow(const std::vector<std::string>& data) {
     outputFile << "\n" << oss.str();
 }
 
+void FileRepository::appendHeader(const std::vector<std::string>& data) {
+    std::ofstream outputFile(fileName, std::ios::app);
+    std::string dataStr;
+    std::ostringstream oss;
+    for (size_t i=0; i < data.size(); ++i) {
+        if (i) {
+            oss << ",";
+        }
+        oss << data[i];
+    }
+    if (!outputFile.is_open()) {
+        throw std::runtime_error("Failed opening file: " + fileName);
+    }
+    outputFile << oss.str();
+}
+
 StrRow FileRepository::parseRow(const DataRow& line) const {
     StrRow parsedRow;
     std::stringstream ss(line);
@@ -87,4 +103,12 @@ void FileRepository::resetReader() {
     }
     file.open(fileName);
     currentReadLine = 0;
+}
+
+void FileRepository::clear(){
+    std::ofstream outputFile(fileName, std::ios::out | std::ios::trunc);
+
+    if (!outputFile.is_open()) {
+        throw std::runtime_error("Failed opening file: " + fileName);
+    }
 }

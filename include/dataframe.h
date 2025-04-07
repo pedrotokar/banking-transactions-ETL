@@ -87,6 +87,8 @@ public:
     template <typename T>
     const std::vector<T>& getColumnData(size_t index) const;
 
+    const std::vector<std::string> getHeader() const;
+
     template <typename T>
     T getElement(size_t rowIdx, size_t colIdx) const;
 
