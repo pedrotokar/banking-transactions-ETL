@@ -1,6 +1,7 @@
 
 #include "datarepository.h"
 #include "types.h"
+#include <sstream>
 
 FileRepository::FileRepository(const std::string& fname,
                                const std::string& sep,
@@ -46,6 +47,22 @@ void FileRepository::appendRow(const DataRow& data) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
     outputFile << data << "\n";
+}
+
+void FileRepository::appendRow(const std::vector<std::string>& data) {
+    std::ofstream outputFile(fileName, std::ios::app);
+    std::string dataStr;
+    std::ostringstream oss;
+    for (size_t i=0; i < data.size(); ++i) {
+        if (i) {
+            oss << ",";
+        }
+        oss << data[i];
+    }
+    if (!outputFile.is_open()) {
+        throw std::runtime_error("Failed opening file: " + fileName);
+    }
+    outputFile << "\n" << oss.str();
 }
 
 StrRow FileRepository::parseRow(const DataRow& line) const {

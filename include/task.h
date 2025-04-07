@@ -48,7 +48,22 @@ public:
 
 class Extractor : public Task {
 public:
+    virtual ~Extractor() = default;
     void extract(DataFrame* & output, FileRepository* & repository);
+
+    void addRepo(FileRepository* repo){ repository = repo;};
+
+    void execute();
+private:
+    FileRepository* repository;
+};
+
+class Loader : public Task {
+public:
+    virtual ~Loader() = default;
+    void recreateRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
+    void actualizeRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
+    void addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 

@@ -25,6 +25,7 @@ public:
     // virtual WildRow parseRow(const DataRow& line) const = 0;
 
     virtual void appendRow(const DataRow& data) = 0;
+    virtual void appendRow(const std::vector<std::string>& data) = 0;
 
     virtual void resetReader() {};
     virtual size_t lineCount() const { return 0; };
@@ -53,6 +54,7 @@ public:
 
     DataRow getRow() override;
     void appendRow(const DataRow& data) override;
+    void appendRow(const std::vector<std::string>& data) override;
     void resetReader() override;
     size_t lineCount() const override { return totalLines; }
     void close();

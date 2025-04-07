@@ -75,14 +75,62 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
         auto parsedRow = repository->parseRow(row);
         output->addRow(parsedRow);
     };
+
+    repository->close();
 };
 
 void Extractor::execute(){
     auto start = std::chrono::high_resolution_clock::now();
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
-
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+};
+
+void Loader::recreateRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
+    DataFrame* dfInput = inputs[0].second;
+    for (size_t i = 0; i < dfInput->size(); i++)
+    {
+        return;
+    }
+    
+};
+
+void Loader::actualizeRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
+    return;    
+};
+
+void Loader::addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
+    DataFrame* dfInput = inputs[0].second;
+    for (size_t i = 0; i < dfInput->size(); i++)
+    {
+        std::vector<std::string> row = dfInput->getRow(i);
+        repository->appendRow(row);
+    }
+    repository->close();
+};
+
+
+
+void Loader::execute(){
+    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    for (auto previousTask : previousTasks){
+        size_t dataFrameCounter = previousTask.first->getOutputs().size();
+        for (size_t i = 0; i < dataFrameCounter; i++){
+            auto dataFrame = previousTask.first->getOutputs().at(i);
+            //bool shouldSplit = previousTask.second.at(i);
+            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
+            std::vector<int> indexes;
+            for (size_t j = 0; j < dataFrame->size(); j++){
+                indexes.push_back(j);
+            }
+            auto pair = std::make_pair(indexes, dataFrame);
+            inputs.push_back(pair);
+        }
+    }
+
+    std::cout << inputs[0].second->toString() << std::endl;
+    addRows(inputs, repository);
+    std::cout << "called transform" << std::endl;
 };

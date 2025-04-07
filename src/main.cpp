@@ -276,6 +276,10 @@ void teste3() {
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     t1->addNext(t2);
+
+    auto l0 = std::make_shared<Loader>();
+    t1->addNext(l0);
+
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
 
@@ -286,6 +290,10 @@ void teste3() {
     
     t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
+    
+    // FileRepository* new_repository = new FileRepository("data/result_1_teste_3.csv", ",", true);
+    l0->addRepo(repository);
+    l0->execute();
 
     t2->execute();
     cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
@@ -742,7 +750,8 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
 
     //testeTrigger2();
-    testeGeralEmap();
+    //testeGeralEmap();
+    teste3();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
