@@ -639,6 +639,9 @@ public:
 };
 
 void testeGeralEmap(){
+    //================================================//
+    //Definições dos dataframes de saída de cada bloco//
+    //================================================//
     DataFrame* dfOutE = new DataFrame();
     dfOutE->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOutE->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
@@ -686,11 +689,14 @@ void testeGeralEmap(){
     cout << "Output dataframe specification for t2.3:\n" << dfOut23->toString() << endl;
     cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
 
-    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
+    //================================================//
+    //             Definições de cada bloco           //
+    //================================================//
+    FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
     auto e0 = std::make_shared<Extractor>();
     e0->addOutput(dfOutE);
-    e0->addRepo(repository);
+    e0->addRepo(inputRepository);
 
     auto t11FilterStrings = std::vector<std::string>{"Secretario", "Professor", "Diretor"};
     auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
@@ -715,8 +721,24 @@ void testeGeralEmap(){
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
 
+    FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
+    auto l0 = std::make_shared<Loader>();
+    l0->addRepo(outputRepositoryFilter);
+
+    FileRepository* outputRepositoryAges = new FileRepository("data/output_emap_age.csv", ",", true);
+    auto l1 = std::make_shared<Loader>();
+    l1->addRepo(outputRepositoryAges);
+
+    FileRepository* outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
+    auto l2 = std::make_shared<Loader>();
+    l2->addRepo(outputRepositorySalary);
+
+    //================================================//
+    //                Construção do DAG               //
+    //================================================//
     e0->addNext(t11);
     e0->addNext(t12);
+
     t11->addNext(t21);
     t11->addNext(t22);
     t11->addNext(t23);
@@ -724,9 +746,16 @@ void testeGeralEmap(){
     t21->addNext(t3);
     t22->addNext(t3);
 
+    t12->addNext(l0);
+    t23->addNext(l2);
+    t24->addNext(l1);
+
     RequestTrigger trigger;
     trigger.addExtractor(e0);
 
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
     std::cout << "Startando trigger...\n";
     trigger.start(1);
     std::cout << "Trigger finalizado.\n";
@@ -743,6 +772,7 @@ void testeGeralEmap(){
     cout << "t2.4 dataframe after running:\n" << dfOut24->toString() << endl;
     cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
 
+
 }
 
 int main() {
@@ -750,8 +780,8 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
 
     //testeTrigger2();
-    //testeGeralEmap();
-    teste3();
+    testeGeralEmap();
+    //teste3();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;

@@ -112,8 +112,9 @@ void Loader::addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>&
 };
 
 
-
 void Loader::execute(){
+    auto start = std::chrono::high_resolution_clock::now();
+
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
@@ -130,7 +131,8 @@ void Loader::execute(){
         }
     }
 
-    std::cout << inputs[0].second->toString() << std::endl;
     addRows(inputs, repository);
-    std::cout << "called transform" << std::endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 };
