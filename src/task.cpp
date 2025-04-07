@@ -71,14 +71,14 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
         auto parsedRow = repository->parseRow(row);
         output->addRow(parsedRow);
     };
+
+    repository->close();
 };
 
 void Extractor::execute(){
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
     std::cout << outDF->toString() << std::endl;
-
-    addOutput(outDF);
 };
 
 void Loader::recreateRepo(const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs, FileRepository* & repository) {   
@@ -101,6 +101,7 @@ void Loader::addRows(const std::vector<std::pair<std::vector<int>, DataFrame*>>&
         std::vector<std::string> row = dfInput->getRow(i);
         repository->appendRow(row);
     }
+    repository->close();
 };
 
 

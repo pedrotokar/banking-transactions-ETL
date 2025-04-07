@@ -610,7 +610,8 @@ void teste3() {
     
     t1->execute();
     cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
-
+    
+    // FileRepository* new_repository = new FileRepository("data/result_1_teste_3.csv", ",", true);
     l0->addRepo(repository);
     l0->execute();
 
@@ -756,15 +757,13 @@ void testeTrigger2(){
 
 int main() {
 
-    // auto start = std::chrono::high_resolution_clock::now();
-
-    // testeTrigger2();
-
-    // auto end = std::chrono::high_resolution_clock::now();
-    // std::chrono::duration<double, std::milli> elapsed = end - start;
-    // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+    auto start = std::chrono::high_resolution_clock::now();
 
     teste3();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 
     return 0;
 }
