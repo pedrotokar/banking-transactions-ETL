@@ -14,12 +14,24 @@ std::string BaseColumn::getIdentifier() const {
     return identifier;
 }
 
+std::string BaseColumn::toString() const {
+    std::ostringstream oss;
+    oss << "BaseColumn '" << identifier << "' (position: " << position
+        << ", type: " << dataType << "):\n";
+    return oss.str();
+}
+
 std::string BaseColumn::getTypeName() const {
     return dataType;
 }
 
 //se tem zero colunas, seta o tamanho do dataframe para o da coluna. Se tem alguma, então verifica se a coluna bate o tamanho
 void DataFrame::addColumn(std::shared_ptr<BaseColumn> column) {
+    if (columnMap.find(column->getIdentifier()) != columnMap.end()) {
+        throw std::invalid_argument("Column identifier must be unique");
+    }
+    columnMap[column->getIdentifier()] = this->columns.size();
+    
     if (columns.size() == 0){
         columns.push_back(column);
         dataFrameSize = column->size();
@@ -75,6 +87,23 @@ std::shared_ptr<BaseColumn> DataFrame::getColumn(size_t index) const {
     return columns[index];
 }
 
+
+const std::vector<std::string> DataFrame::getHeader() const {
+    std::vector<std::string> header;
+    for (const auto& column : columns) {
+        header.push_back(column->getIdentifier());
+    }
+    return header;
+}
+
+std::shared_ptr<BaseColumn> DataFrame::getColumn(const std::string &columnName) const {
+    auto it = columnMap.find(columnName);
+    if (it == columnMap.end()) {
+        throw std::out_of_range("Column not in DataFrame.");
+    }
+    return columns[it->second];
+}
+
 std::vector<std::string> DataFrame::getRow(size_t row) const {
     std::vector<std::string> rowData;
     if (columns.empty())
@@ -91,32 +120,54 @@ std::vector<std::string> DataFrame::getRow(size_t row) const {
     return rowData;
 }
 
-std::string DataFrame::toString() const {
+std::string DataFrame::toString(size_t n) const {
     std::ostringstream oss;
-    size_t nRows = 0;
+    size_t nRows = std::min(n, dataFrameSize);;
     size_t nCols = columns.size();
 
-    for (const auto &col : columns) {
-        if (col->size() > nRows) {
-            nRows = col->size();
-        }
-    }
+    size_t width = 12;
 
     oss << "| ";
     for (const auto &col : columns) {
-        oss << std::setw(10) << std::left << col->getIdentifier() << " | ";
+        oss << std::setw(width) << std::left << col->getIdentifier() << " | ";
     }
     oss << "\n";
 
-    oss << "|" <<std::string(13*nCols-1, '=') << "|\n";
+    oss << "|" <<std::string((width+3)*nCols-1, '=') << "|\n";
 
     for (size_t i = 0; i < nRows; ++i) {
         oss << "| ";
         std::vector<std::string> row = getRow(i);
         for (const auto &value : row) {
-            oss << std::setw(10) << std::left << value << " | ";
+            oss << std::setw(width) << std::left << value << " | ";
+        }
+        oss << "\n";
+    }
+    if (dataFrameSize > nRows) {
+        oss << "| ";
+        for (size_t i = 0; i < nCols; ++i) {
+                oss << std::setw(width) << std::left << "..." << " | ";
         }
         oss << "\n";
     }
     return oss.str();
+}
+
+std::shared_ptr<DataFrame> DataFrame::emptyCopy() {
+    auto df = std::make_shared<DataFrame>();
+    for (const auto& col : columns) {
+        df->addColumn(col->cloneEmpty());
+    }
+    return df;
+}
+
+std::shared_ptr<DataFrame> DataFrame::emptyCopy(std::vector<std::string> colNames) {
+    auto df = std::make_shared<DataFrame>();
+    for (const auto& colName : colNames) {
+        auto col = getColumn(colName);
+        if (col) {
+            df->addColumn(col->cloneEmpty());
+        }
+    }
+    return df;
 }

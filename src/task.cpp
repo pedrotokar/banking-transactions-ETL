@@ -1,9 +1,136 @@
 #include "task.h"
+#include "dataframe.h"
+#include "datarepository.h"
+#include <memory>
+#include <vector>
 
+//Definições das interfaces para adicionar saídas e relacionamentos
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
+    std::vector<bool> splitDFs;
+    for(size_t i = 0; i < outputDFs.size(); i++){
+        splitDFs.push_back(true);
+    }
+    nextTask->addPrevious(shared_from_this(), splitDFs);
 }
 
-void Task::addOutput(const OutputSpec& spec) {
-    outputSpecs.push_back(spec);
+void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs){
+    if(previousTask->getOutputs().size() != splitDFs.size()){
+        throw "The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs";
+    }
+    auto pair = make_pair(previousTask, splitDFs);
+    previousTasks.push_back(pair);
 }
+
+void Task::addOutput(DataFrame* spec) {
+    outputDFs.push_back(spec);
+}
+
+//Getters
+const std::vector<std::shared_ptr<Task>>& Task::getNextTasks(){
+    return nextTasks;
+}
+
+const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& Task::getPreviousTasks(){
+    return previousTasks;
+}
+
+const std::vector<DataFrame*>& Task::getOutputs(){
+    return outputDFs;
+}
+
+//Sobrescreve o método abstrato execute com o que a transformers precisam fazer
+void Transformer::execute(){
+    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    for (auto previousTask : previousTasks){
+        size_t dataFrameCounter = previousTask.first->getOutputs().size();
+        for (size_t i = 0; i < dataFrameCounter; i++){
+            auto dataFrame = previousTask.first->getOutputs().at(i);
+            //bool shouldSplit = previousTask.second.at(i);
+            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
+            std::vector<int> indexes;
+            for (size_t j = 0; j < dataFrame->size(); j++){
+                indexes.push_back(j);
+            }
+            auto pair = std::make_pair(indexes, dataFrame);
+            inputs.push_back(pair);
+        }
+    }
+    auto start = std::chrono::high_resolution_clock::now();
+    //testeTrigger2();
+    transform(outputDFs, inputs);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+//    std::cout << "calling transform" << std::endl;
+//    std::cout << "called transform" << std::endl;
+}
+
+void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   
+    while (true) {
+        DataRow row = repository->getRow();
+
+        if (!repository->hasNext()) break;
+
+        auto parsedRow = repository->parseRow(row);
+        output->addRow(parsedRow);
+    };
+
+    repository->close();
+};
+
+void Extractor::execute(){
+    auto start = std::chrono::high_resolution_clock::now();
+    DataFrame* outDF = outputDFs.at(0);
+    extract(outDF, repository);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+};
+
+void Loader::createRepo(DataFrame* & dfInput, FileRepository* & repository) {   
+    repository->clear();
+    StrRow header = dfInput->getHeader();
+    repository->appendHeader(header);
+    addRows(dfInput, repository);
+};
+
+void Loader::actualizeRepo(DataFrame* & dfInput, FileRepository* & repository) {   
+    return;    
+};
+
+void Loader::addRows(DataFrame* & dfInput, FileRepository* & repository) {   
+    for (size_t i = 0; i < dfInput->size(); i++)
+    {
+        std::vector<std::string> row = dfInput->getRow(i);
+        repository->appendRow(row);
+    }
+    repository->close();
+};
+
+
+void Loader::execute(){
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    for (auto previousTask : previousTasks){
+        size_t dataFrameCounter = previousTask.first->getOutputs().size();
+        for (size_t i = 0; i < dataFrameCounter; i++){
+            auto dataFrame = previousTask.first->getOutputs().at(i);
+            //bool shouldSplit = previousTask.second.at(i);
+            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
+            std::vector<int> indexes;
+            for (size_t j = 0; j < dataFrame->size(); j++){
+                indexes.push_back(j);
+            }
+            auto pair = std::make_pair(indexes, dataFrame);
+            inputs.push_back(pair);
+        }
+    }
+    DataFrame* dfInput = inputs[0].second;
+
+    createRepo(dfInput, repository);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
+};
