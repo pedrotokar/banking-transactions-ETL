@@ -61,7 +61,7 @@ void Transformer::execute(){
     transform(outputDFs, inputs);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+    std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 //    std::cout << "calling transform" << std::endl;
 //    std::cout << "called transform" << std::endl;
 }
@@ -85,7 +85,7 @@ void Extractor::execute(){
     extract(outDF, repository);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+    std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
 
 void Loader::createRepo(DataFrame* & dfInput, FileRepository* & repository) {   
@@ -132,5 +132,5 @@ void Loader::execute(){
     createRepo(dfInput, repository);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+    std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
 };
