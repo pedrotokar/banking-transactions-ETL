@@ -48,7 +48,14 @@ cd Banking-Transactions-ETL
 
 Nosso trabalho conta com o comando `make` para gerenciar as compilações. Atualmente,
 a pipeline de exemplo que demonstra as funcionalidades do sistema depende de um
-arquivo csv. Para gerar esse arquivo, é necessário usar o comando:
+arquivo csv. Para gerar esse arquivo, primeiro é necessário baixar as bibliotecas
+python necessárias (de preferência em um ambiente virtual):
+
+```bash
+$ pip install -r requirements.txt
+```
+
+Após baixá-las, basta usar o comando:
 
 ```bash
 $ make csvgen

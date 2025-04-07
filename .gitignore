@@ -1,0 +1,6 @@
+out
+*.exe
+.venv
+.vscode
+.github
+data/output*
