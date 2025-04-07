@@ -720,7 +720,7 @@ void testeGeralEmap(){
     trigger.addExtractor(e0);
 
     std::cout << "Startando trigger...\n";
-    trigger.start(3);
+    trigger.start(1);
     std::cout << "Trigger finalizado.\n";
 
     // e0->execute();
@@ -736,7 +736,6 @@ void testeGeralEmap(){
     cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
 
 }
-
 
 int main() {
 

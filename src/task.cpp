@@ -56,9 +56,13 @@ void Transformer::execute(){
             inputs.push_back(pair);
         }
     }
-
-//    std::cout << "calling transform" << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
+    //testeTrigger2();
     transform(outputDFs, inputs);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+//    std::cout << "calling transform" << std::endl;
 //    std::cout << "called transform" << std::endl;
 }
 
@@ -74,9 +78,11 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
 };
 
 void Extractor::execute(){
+    auto start = std::chrono::high_resolution_clock::now();
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
-//    std::cout << outDF->toString() << std::endl;
 
-//    addOutput(outDF);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
