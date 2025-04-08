@@ -37,7 +37,8 @@ private:
     std::string separator;
     bool hasHeader;
     
-    std::fstream file;
+    std::ifstream inFile;
+    std::ofstream outFile;
     size_t currentReadLine;
     size_t totalLines;
     std::string currLine;

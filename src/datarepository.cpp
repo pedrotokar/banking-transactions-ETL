@@ -13,27 +13,31 @@ FileRepository::FileRepository(const std::string& fname,
                                  currentReadLine(0),
                                  totalLines(0) {
 
-    file.open(fileName, std::ios::out | std::ios::in | std::ios::app); 
-    if (!file.is_open()) {
+    outFile.open(fileName, std::ios::app | std::ios::out);
+    inFile.open(fileName);
+    if (!inFile.is_open() || !outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
     if (hasHeader) {
-        std::getline(file, currLine);
+        std::getline(inFile, currLine);
     }
 }
 
 FileRepository::~FileRepository() {
-    if (file.is_open()) {
-        file.close();
+    if (inFile.is_open()) {
+        inFile.close();
+    }
+    if (outFile.is_open()) {
+        outFile.close();
     }
 }
 
 DataRow FileRepository::getRow() {
-    if (!file.is_open()) {
+    if (!inFile.is_open()) {
         throw std::runtime_error("File not open: " + fileName);
     }
 
-    if (std::getline(file, currLine)) {
+    if (std::getline(inFile, currLine)) {
         currentReadLine++;
         return currLine;
     } else {
@@ -43,23 +47,22 @@ DataRow FileRepository::getRow() {
 }
 
 void FileRepository::appendRow(const DataRow& data) {
-    if (!file.is_open()) {
+    if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    file << data << "\n";
+    outFile << data << "\n";
 }
 
 void FileRepository::appendRow(const std::vector<std::string>& data) {
-    if (!file.is_open()) {
+    if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    /// TODO: Verificar estado do file, tem algo estranho rolando aqui
-    file.clear(); 
+    // outFile.clear(); 
     for (size_t i=0; i < data.size(); ++i) {
-        if (i)  file << ",";
-        file << data[i];
+        if (i)  outFile << ",";
+        outFile << data[i];
     }
-    file << "\n";
+    outFile << "\n";
 }
 
 void FileRepository::appendHeader(const std::vector<std::string>& data) {
@@ -82,23 +85,24 @@ StrRow FileRepository::parseRow(const DataRow& line) const {
 }
 
 void FileRepository::close() {
-    if (file.is_open()) {
-        file.close();
+    if (outFile.is_open()) {
+        outFile.close();
+    }
+    if (inFile.is_open()) {
+        inFile.close();
     }
 }
 
 void FileRepository::resetReader() {
-    if (file.is_open()) {
-        file.close();
+    if (inFile.is_open()) {
+        inFile.close();
     }
-    file.open(fileName);
+    inFile.open(fileName);
     currentReadLine = 0;
 }
 
-void FileRepository::clear(){
-    std::ofstream outputFile(fileName, std::ios::out | std::ios::trunc);
-
-    if (!outputFile.is_open()) {
-        throw std::runtime_error("Failed opening file: " + fileName);
-    }
+void FileRepository::clear() {
+    std::ofstream ofs;
+    ofs.open(fileName, std::ofstream::out | std::ofstream::trunc);
+    ofs.close();
 }
