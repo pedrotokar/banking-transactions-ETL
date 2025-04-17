@@ -49,7 +49,7 @@ public:
 class Extractor : public Task {
 public:
     virtual ~Extractor() = default;
-    void extract(DataFrame* & output, FileRepository* & repository);
+    void extract(DataFrame* & output);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
@@ -61,9 +61,9 @@ private:
 class Loader : public Task {
 public:
     virtual ~Loader() = default;
-    void createRepo(DataFrame* & dfInput, FileRepository* & repository);
-    void actualizeRepo(DataFrame* & dfInput, FileRepository* & repository);
-    void addRows(DataFrame* & dfInput, FileRepository* & repository);
+    void createRepo(DataFrame* & dfInput);
+    void actualizeRepo(DataFrame* & dfInput);
+    void addRows(DataFrame* & dfInput);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 

@@ -66,7 +66,7 @@ void Transformer::execute(){
 //    std::cout << "called transform" << std::endl;
 }
 
-void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   
+void Extractor::extract(DataFrame* & output) {   
     while (true) {
         DataRow row = repository->getRow();
 
@@ -82,24 +82,24 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
 void Extractor::execute(){
     auto start = std::chrono::high_resolution_clock::now();
     DataFrame* outDF = outputDFs.at(0);
-    extract(outDF, repository);
+    extract(outDF);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
 
-void Loader::createRepo(DataFrame* & dfInput, FileRepository* & repository) {   
+void Loader::createRepo(DataFrame* & dfInput) {   
     repository->clear();
     StrRow header = dfInput->getHeader();
     repository->appendHeader(header);
-    addRows(dfInput, repository);
+    addRows(dfInput);
 };
 
-void Loader::actualizeRepo(DataFrame* & dfInput, FileRepository* & repository) {   
+void Loader::actualizeRepo(DataFrame* & dfInput) {   
     return;    
 };
 
-void Loader::addRows(DataFrame* & dfInput, FileRepository* & repository) {   
+void Loader::addRows(DataFrame* & dfInput) {   
     for (size_t i = 0; i < dfInput->size(); i++)
     {
         std::vector<std::string> row = dfInput->getRow(i);
@@ -129,7 +129,7 @@ void Loader::execute(){
     }
     DataFrame* dfInput = inputs[0].second;
 
-    createRepo(dfInput, repository);
+    createRepo(dfInput);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
