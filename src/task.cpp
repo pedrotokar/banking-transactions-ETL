@@ -86,18 +86,23 @@ void Extractor::extract(int numThreads) {
 };
 
 void Extractor::producer() {   
+    auto maxBufferSize = buffer.size() + 10000;
     while (true) {
         // Pega cada linha da base de dados
         DataRow row = repository->getRow();
 
         // Verifica se terminou
         if (!repository->hasNext()) break;
-
+   
         // Converte para string a linha do repostitório
         StrRow parsedRow = repository->parseRow(row);
+     
+        std::unique_lock<std::mutex> lock(bufferMutex);
+        cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
 
         // Adiciona a linha ao buffer
         buffer.push(parsedRow);
+
         // Notifica aos consumidores
         cv.notify_all();
     };
@@ -194,17 +199,21 @@ void Loader::addRows(int numThreads) {
 };
 
 void Loader::producer() {   
-    int i = -1;
+    int i = 0;
     int inputSize = dfInput->size();
+    auto maxBufferSize = buffer.size() + 10000;
     while (true) {
-        // Pega cada linha do DF
-        i++;
-        std::vector<std::string> row = dfInput->getRow(i);
-
         // Verifica se terminou
-        if (i >= inputSize) break;
+        if (i == inputSize) break;
+
+        // Pega cada linha do DF   
+        std::vector<std::string> row = dfInput->getRow(i);
+        i++;
 
         // Adiciona a linha ao buffer
+        
+        std::unique_lock<std::mutex> lock(bufferMutex);
+        cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
         buffer.push(row);
         // Notifica aos consumidores
         cv.notify_all();
@@ -244,7 +253,7 @@ void Loader::execute(){
     auto start = std::chrono::high_resolution_clock::now();
 
     getInput();
-    createRepo(5);
+    createRepo(1);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
