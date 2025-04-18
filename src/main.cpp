@@ -872,8 +872,8 @@ void testeTransformer(int nThreads = 1){
     //================================================//
     std::cout << "\nStartando trigger...\n";
     e0->execute();
-    t11->executeWithThreading(nThreads);
-    t21->executeWithThreading(2);
+    t11->executeWithThreading(1);
+    t21->executeWithThreading(10);
 //    trigger.start(nThreads);
     std::cout << "\nTrigger finalizado.\n";
 

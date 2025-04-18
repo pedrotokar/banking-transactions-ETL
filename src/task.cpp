@@ -3,6 +3,10 @@
 #include "datarepository.h"
 #include <memory>
 #include <vector>
+#include <thread>
+#include <chrono>
+#include <atomic>
+#include <condition_variable>
 
 //TODO: melhorar isso daqui
 std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex){
@@ -117,13 +121,23 @@ void Transformer::executeWithThreading(int numThreads = 2){
         }
     }
     auto start = std::chrono::high_resolution_clock::now();
+//    std::mutex transformerMutex;
+    std::vector<std::thread> transformCalls;
+    transformCalls.reserve(numThreads);
+
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
-        std::cout << "Aqui eu chamo a thread " << tIndex << std::endl;
-        transform(outputDFs, threadInputs.at(tIndex));
+        std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
+        transformCalls.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
+//        transform(outputDFs, threadInputs.at(tIndex));
+    }
+    for(auto& transformCall: transformCalls){
+        if(transformCall.joinable()){
+            transformCall.join();
+        }
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+    std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 }
 
 void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   
