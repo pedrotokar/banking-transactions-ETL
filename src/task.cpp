@@ -4,6 +4,22 @@
 #include <memory>
 #include <vector>
 
+//TODO: melhorar isso daqui
+std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex){
+    std::vector<int> indexes;
+    int blockSize = size/numDivisions;
+    size_t startingPoint = dIndex * blockSize;
+    size_t endingPoint;
+    if(dIndex != numDivisions - 1){
+        endingPoint = (dIndex + 1) * blockSize;
+    } else{
+        endingPoint = size;
+    }
+    for (size_t j = startingPoint; j < endingPoint; j++){
+        indexes.push_back(j);
+    }
+    return indexes;
+}
 //Definições das interfaces para adicionar saídas e relacionamentos
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
@@ -58,47 +74,35 @@ void Transformer::execute(){
         }
     }
     auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "calling transform" << std::endl;
     transform(outputDFs, inputs);
+    std::cout << "called transform" << std::endl;
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
-//    std::cout << "calling transform" << std::endl;
-//    std::cout << "called transform" << std::endl;
 }
 
 
 void Transformer::executeWithThreading(int numThreads = 2){
-    std::vector<std::vector<std::pair<std::vector<int>, DataFrame*>>> threadInputs;
+    std::vector<
+        std::vector<std::pair<std::vector<int>, DataFrame*>>
+    > threadInputs; //Vai ser um vector do que seria a entrada pra cada df. Vou fazer uns typdef aqui depois pq tá feio kk
     for (int i = 0; i < numThreads; i++){
         std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
-        threadInputs.push_back(inputs);
+        threadInputs.push_back(inputs); //Input para cada thread. Começa vazio
     }
-    for (auto previousTask : previousTasks){
+    for (auto previousTask : previousTasks){ //Roda as tasks anteriores
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
-        for (size_t i = 0; i < dataFrameCounter; i++){
+        for (size_t i = 0; i < dataFrameCounter; i++){ //Roda cada df que pode sair da task anterior. Se só passar a ser um fixo por task, esse for iria de base
             auto dataFrame = previousTask.first->getOutputs().at(i);
 
             bool shouldSplit = previousTask.second.at(i);
             if(shouldSplit){
-                int blockSize = dataFrame->size()/numThreads;
-                for (int tIndex = 0; tIndex < numThreads - 1; tIndex++){
-                    std::vector<int> indexes;
-                    size_t startingPoint = tIndex * blockSize;
-                    size_t endingPoint = (tIndex + 1) * blockSize;
-                    for (size_t j = startingPoint; j < endingPoint; j++){
-                        indexes.push_back(j);
-                    }
+                for (int tIndex = 0; tIndex < numThreads; tIndex++){
+                    std::vector<int> indexes = getRangeVector(dataFrame->size(), numThreads, tIndex);
                     auto pair = std::make_pair(indexes, dataFrame);
                     threadInputs.at(tIndex).push_back(pair);
                 }
-                std::vector<int> indexes;
-                size_t startingPoint = (numThreads - 1) * blockSize;
-                size_t endingPoint = dataFrame->size();
-                for (size_t j = startingPoint; j < endingPoint; j++){
-                    indexes.push_back(j);
-                }
-                auto pair = std::make_pair(indexes, dataFrame);
-                threadInputs.at(numThreads - 1).push_back(pair);
             } else {
                 std::vector<int> indexes;
                 for (size_t j = 0; j < dataFrame->size(); j++){
@@ -112,10 +116,14 @@ void Transformer::executeWithThreading(int numThreads = 2){
             }
         }
     }
+    auto start = std::chrono::high_resolution_clock::now();
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         std::cout << "Aqui eu chamo a thread " << tIndex << std::endl;
         transform(outputDFs, threadInputs.at(tIndex));
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 }
 
 void Extractor::extract(DataFrame* & output, FileRepository* & repository) {   

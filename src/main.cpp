@@ -482,8 +482,8 @@ public:
             return;
         }
 
-        std::cout << "[FilterDFTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        //std::cout << "[FilterDFTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        std::cout << "[FilterDFTransformer] Tamanho do dataframe de entrada: " << df->size() << " | ";
+        std::cout << "Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         auto outDf = outputs.at(0);
         for (auto index : inputs[0].first) {
@@ -519,8 +519,8 @@ public:
             return;
         }
 
-        std::cout << "[AgeSumTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        //std::cout << "[AgeSumTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        std::cout << "[AgeSumTransformer] Tamanho do dataframe de entrada: " << df->size() << " | ";
+        std::cout << "Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         std::unordered_map<std::string, int> sum;
 
@@ -796,12 +796,99 @@ void testeGeralEmap(int nThreads = 1){
 
 }
 
+void testeTransformer(int nThreads = 1){
+    //================================================//
+    //Definições dos dataframes de saída de cada bloco//
+    //================================================//
+    DataFrame* dfOutE = new DataFrame();
+    dfOutE->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOutE->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
+    dfOutE->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
+    dfOutE->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
+
+    DataFrame* dfOut11 = new DataFrame();
+    dfOut11->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut11->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
+    dfOut11->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
+    dfOut11->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
+
+    DataFrame* dfOut21 = new DataFrame();
+    dfOut21->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut21->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
+
+    DataFrame* dfOut22 = new DataFrame();
+    dfOut22->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut22->addColumn(std::make_shared<Column<int>>("contagem", 1, 0));
+
+    //    DataFrame* dfOut3 = new DataFrame();
+    //    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    //    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
+    //    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
+    //    dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
+
+    cout << "Output dataframe specification for e:\n" << dfOutE->toString() << endl;
+    cout << "Output dataframe specification for t1.1:\n" << dfOut11->toString() << endl;
+    cout << "Output dataframe specification for t2.1:\n" << dfOut21->toString() << endl;
+    cout << "Output dataframe specification for t2.2:\n" << dfOut22->toString() << endl;
+    //    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
+
+
+    //================================================//
+    //             Definições de cada bloco           //
+    //================================================//
+    FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
+    auto e0 = std::make_shared<Extractor>();
+    e0->addOutput(dfOutE);
+    e0->addRepo(inputRepository);
+
+    auto t11FilterStrings = std::vector<std::string>{"Secretario", "Professor", "Diretor"};
+    auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
+    t11->addOutput(dfOut11);
+
+    auto t21 = std::make_shared<AgeSumTransformer>();
+    t21->addOutput(dfOut21);
+
+    auto t22 = std::make_shared<CounterTransformer>();
+    t22->addOutput(dfOut22);
+
+    //    auto t3 = std::make_shared<MeanTransformer>();
+    //    t3->addOutput(dfOut3);
+
+    //================================================//
+    //                Construção do DAG               //
+    //================================================//
+    e0->addNext(t11);
+
+    t11->addNext(t21);
+    t11->addNext(t22);
+    //    t21->addNext(t3);
+    //    t22->addNext(t3);
+
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
+
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
+    std::cout << "\nStartando trigger...\n";
+    e0->execute();
+    t11->executeWithThreading(nThreads);
+    t21->executeWithThreading(2);
+//    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n";
+
+    cout << "t2.1 dataframe after running:\n" << dfOut21->toString() << endl;
+    cout << "t2.2 dataframe after running:\n" << dfOut22->toString() << endl;
+    //    cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
+
+}
+
 
 int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    testeGeralEmap(1);
+    testeTransformer(7);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
