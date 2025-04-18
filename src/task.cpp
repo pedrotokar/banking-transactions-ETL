@@ -139,30 +139,7 @@ void Extractor::execute(){
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
 
-void Loader::createRepo(DataFrame* & dfInput) {   
-    repository->clear();
-    StrRow header = dfInput->getHeader();
-    repository->appendHeader(header);
-    addRows(dfInput);
-};
-
-void Loader::actualizeRepo(DataFrame* & dfInput) {   
-    return;    
-};
-
-void Loader::addRows(DataFrame* & dfInput) {   
-    for (size_t i = 0; i < dfInput->size(); i++)
-    {
-        std::vector<std::string> row = dfInput->getRow(i);
-        repository->appendRow(row);
-    }
-    repository->close();
-};
-
-
-void Loader::execute(){
-    auto start = std::chrono::high_resolution_clock::now();
-
+void Loader::getInput() {
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
@@ -178,9 +155,97 @@ void Loader::execute(){
             inputs.push_back(pair);
         }
     }
-    DataFrame* dfInput = inputs[0].second;
+    dfInput = inputs[0].second;
+}
 
-    createRepo(dfInput);
+void Loader::createRepo(int numThreads) {   
+    repository->clear();
+    StrRow header = dfInput->getHeader();
+    repository->appendHeader(header);
+    addRows(numThreads);
+};
+
+void Loader::actualizeRepo(int numThreads) {   
+    return;    
+};
+
+/*void Loader::addRows() {   
+    for (size_t i = 0; i < dfInput->size(); i++)
+    {
+        std::vector<std::string> row = dfInput->getRow(i);
+        repository->appendRow(row);
+    }
+    repository->close();
+};*/
+
+void Loader::addRows(int numThreads) {  
+    std::thread threadProducer(&Loader::producer, this);
+
+    std::vector<std::thread> consumers;
+    for (int i = 0; i < numThreads; ++i) {
+        consumers.emplace_back(&Loader::consumer, this);
+    }    
+
+    if (threadProducer.joinable()) threadProducer.join();
+    for (auto& threadConsumer : consumers) {
+        if (threadConsumer.joinable()) threadConsumer.join();
+    }
+    repository->close();
+};
+
+void Loader::producer() {   
+    int i = -1;
+    int inputSize = dfInput->size();
+    while (true) {
+        // Pega cada linha do DF
+        i++;
+        std::vector<std::string> row = dfInput->getRow(i);
+
+        // Verifica se terminou
+        if (i >= inputSize) break;
+
+        // Adiciona a linha ao buffer
+        buffer.push(row);
+        // Notifica aos consumidores
+        cv.notify_all();
+    };
+    // cv.notify_all();
+
+    endProduction = true;
+};
+
+void Loader::consumer() {   
+    while (true) {
+        std::unique_lock<std::mutex> lock(bufferMutex);
+
+        // Aguarda até que o buffer não esteja vazio enquanto há produção
+        cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
+
+        // Verifica se terminou o serviço
+        if (buffer.empty() && endProduction) break;
+
+        // Pega o primeira linha no buffer
+        StrRow row = buffer.front();
+        buffer.pop();
+
+        // Libera o mutex antes de acessar o repositório
+        lock.unlock(); 
+
+        // Adiciona o dado processado ao repositório
+        {
+            std::lock_guard<std::mutex> dfLock(repoMutex);
+            repository->appendRow(row);
+        }
+        cv.notify_all();
+    }
+}
+
+void Loader::execute(){
+    auto start = std::chrono::high_resolution_clock::now();
+
+    getInput();
+    createRepo(5);
+
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;

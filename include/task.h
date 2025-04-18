@@ -71,15 +71,26 @@ private:
 class Loader : public Task {
 public:
     virtual ~Loader() = default;
-    void createRepo(DataFrame* & dfInput);
-    void actualizeRepo(DataFrame* & dfInput);
-    void addRows(DataFrame* & dfInput);
+    void createRepo(int numThreads);
+    void actualizeRepo(int numThreads);
+    void addRows(int numThreads);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
     void execute();
 private:
     FileRepository* repository;
+    DataFrame* dfInput;
+    void getInput();
+
+    std::queue<StrRow> buffer;
+    std::mutex bufferMutex;
+    std::mutex repoMutex;
+    std::condition_variable cv;
+    std::atomic<bool> endProduction;
+
+    void producer();
+    void consumer();
 };
 
 #endif
