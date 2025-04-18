@@ -24,7 +24,8 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
     }
     return indexes;
 }
-//Definições das interfaces para adicionar saídas e relacionamentos
+
+//Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
     std::vector<bool> splitDFs;
@@ -33,7 +34,7 @@ void Task::addNext(std::shared_ptr<Task> nextTask) {
     }
     nextTask->addPrevious(shared_from_this(), splitDFs);
 }
-
+//Todas as tasks precisam saber suas anteriores e próximas, por isso esse método também é necessário
 void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs){
     if(previousTask->getOutputs().size() != splitDFs.size()){
         throw "The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs";
@@ -59,35 +60,39 @@ const std::vector<DataFrame*>& Task::getOutputs(){
     return outputDFs;
 }
 
-
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
-void Transformer::execute(){
-    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
-    for (auto previousTask : previousTasks){
-        size_t dataFrameCounter = previousTask.first->getOutputs().size();
-        for (size_t i = 0; i < dataFrameCounter; i++){
-            auto dataFrame = previousTask.first->getOutputs().at(i);
-            //Primeiro constrói o vetor index para cada dataframe e depois faz e dá push no pair.
-            //Como tem só uma thread, só pega o indice todo do dataframe
-            std::vector<int> indexes;
-            for (size_t j = 0; j < dataFrame->size(); j++){
-                indexes.push_back(j);
+void Transformer::execute(int numThreads){
+    if(numThreads == 1){
+        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        for (auto previousTask : previousTasks){
+            size_t dataFrameCounter = previousTask.first->getOutputs().size();
+            for (size_t i = 0; i < dataFrameCounter; i++){
+                auto dataFrame = previousTask.first->getOutputs().at(i);
+                //Primeiro constrói o vetor index para cada dataframe e depois faz e dá push no pair.
+                //Como tem só uma thread, só pega o indice todo do dataframe
+                std::vector<int> indexes;
+                for (size_t j = 0; j < dataFrame->size(); j++){
+                    indexes.push_back(j);
+                }
+                auto pair = std::make_pair(indexes, dataFrame);
+                inputs.push_back(pair);
             }
-            auto pair = std::make_pair(indexes, dataFrame);
-            inputs.push_back(pair);
         }
+        auto start = std::chrono::high_resolution_clock::now();
+        std::cout << "calling transform" << std::endl;
+        transform(outputDFs, inputs);
+        std::cout << "called transform" << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
     }
-    auto start = std::chrono::high_resolution_clock::now();
-    std::cout << "calling transform" << std::endl;
-    transform(outputDFs, inputs);
-    std::cout << "called transform" << std::endl;
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+    else{
+        executeWithThreading(numThreads);
+    }
 }
 
-
-void Transformer::executeWithThreading(int numThreads = 2){
+//Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
+void Transformer::executeWithThreading(int numThreads){
     std::vector<
         std::vector<std::pair<std::vector<int>, DataFrame*>>
     > threadInputs; //Vai ser um vector do que seria a entrada pra cada df. Vou fazer uns typdef aqui depois pq tá feio kk
@@ -116,24 +121,25 @@ void Transformer::executeWithThreading(int numThreads = 2){
                     auto pair = std::make_pair(indexes, dataFrame);
                     threadInputs.at(tIndex).push_back(pair);
                 }
-                //inputs.push_back(pair);
             }
         }
     }
     auto start = std::chrono::high_resolution_clock::now();
+
     std::vector<std::thread> threadList;
     threadList.reserve(numThreads);
-
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
+        //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
         threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
-//        transform(outputDFs, threadInputs.at(tIndex));
     }
+    //Espera threads terminarem
     for(auto& workingThread: threadList){
         if(workingThread.joinable()){
             workingThread.join();
         }
     }
+
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
@@ -152,7 +158,7 @@ void Extractor::extract(DataFrame* & output, FileRepository* & repository) {
     repository->close();
 };
 
-void Extractor::execute(){
+void Extractor::execute(int numThreads){
     auto start = std::chrono::high_resolution_clock::now();
     DataFrame* outDF = outputDFs.at(0);
     extract(outDF, repository);
@@ -182,7 +188,7 @@ void Loader::addRows(DataFrame* & dfInput, FileRepository* & repository) {
 };
 
 
-void Loader::execute(){
+void Loader::execute(int numThreads){
     auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;

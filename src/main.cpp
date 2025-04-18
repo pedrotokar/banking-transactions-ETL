@@ -463,12 +463,12 @@ void testeTrigger2(){
 
 }
 
-std::mutex filterMutex;
 class FilterDFTransformer : public Transformer {
 private:
     std::vector<std::string> filterStrings;
+    std::mutex filterMutex;
 public:
-    FilterDFTransformer(std::vector<std::string> filter = {}): filterStrings(filter) {};
+    FilterDFTransformer(std::vector<std::string> filter = {}): filterStrings(filter), filterMutex() {};
     void transform(std::vector<DataFrame*>& outputs,
                    const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
     {
@@ -507,9 +507,11 @@ public:
     }
 };
 
-std::mutex sumMutex;
 class AgeSumTransformer : public Transformer {
+private:
+    std::mutex sumMutex;
 public:
+    AgeSumTransformer(): sumMutex() {};
     void transform(std::vector<DataFrame*>& outputs,
                    const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
     {
@@ -602,9 +604,11 @@ public:
     }
 };
 
-std::mutex counterMutex;
 class CounterTransformer : public Transformer {
+private:
+    std::mutex counterMutex;
 public:
+    CounterTransformer(): counterMutex() {};
     void transform(std::vector<DataFrame*>& outputs,
                    const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
     {
@@ -845,6 +849,12 @@ void testeTransformer(int nThreads = 1){
     dfOut11->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOut11->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
+    DataFrame* dfOut12 = new DataFrame();
+    dfOut12->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut12->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
+    dfOut12->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
+    dfOut12->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
+
     DataFrame* dfOut21 = new DataFrame();
     dfOut21->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut21->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
@@ -878,6 +888,10 @@ void testeTransformer(int nThreads = 1){
     auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
     t11->addOutput(dfOut11);
 
+    auto t12FilterStrings = std::vector<std::string>{"AlunoGrad", "AlunoMesc"};
+    auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
+    t12->addOutput(dfOut12);
+
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
 
@@ -891,9 +905,10 @@ void testeTransformer(int nThreads = 1){
     //                Construção do DAG               //
     //================================================//
     e0->addNext(t11);
+    e0->addNext(t12);
 
-    t11->addNext(t21);
-    t11->addNext(t22);
+//    t11->addNext(t21);
+//    t11->addNext(t22);
     //    t21->addNext(t3);
     //    t22->addNext(t3);
 
@@ -904,11 +919,11 @@ void testeTransformer(int nThreads = 1){
     // Inicialização do trigger e execução da pipeline//
     //================================================//
     std::cout << "\nStartando trigger...\n";
-    e0->execute();
-    t11->executeWithThreading(nThreads);
-    t21->executeWithThreading(nThreads);
-    t22->executeWithThreading(nThreads);
-//    trigger.start(nThreads);
+//    e0->execute();
+//    t11->execute(nThreads);
+//    t21->execute(nThreads + 1);
+//    t22->execute(nThreads + 2);
+    trigger.start(nThreads);
     std::cout << "\nTrigger finalizado.\n";
 
     cout << "t2.1 dataframe after running:\n" << dfOut21->toString() << endl;
@@ -922,7 +937,7 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    testeTransformer(1);
+    testeTransformer(3);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
