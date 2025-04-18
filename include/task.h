@@ -27,7 +27,7 @@ public:
     const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& getPreviousTasks();
     const std::vector<DataFrame*>& getOutputs();
     //Função comum para todos os blocos do etl que deverá executar eles.
-    virtual void execute() {};
+    virtual void execute(int numThreads = 1) {};
 
 protected:
     //Vetores com as saídas e relacionamentos
@@ -42,9 +42,14 @@ public:
     //Função virtual que qualquer transformer deve implementar
     virtual void transform(std::vector<DataFrame*>& outputs,
                            const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) = 0;
-    //Função virtual que será varia entre transformer, extractor e loader
-    void execute() override;
+
+    //Implementação específica do transformer para o execute
+    void execute(int numThreads = 1) override;
+
+private:
+    void executeWithThreading(int numThreads);
 };
+
 
 class Extractor : public Task {
 public:
@@ -53,7 +58,8 @@ public:
     void addOutput(DataFrame* outputDF);
     void addRepo(FileRepository* repo){ repository = repo;};
 
-    void execute();
+    //Implementação específica do extractor para o execute
+    void execute(int numThreads = 1);
 private:
     FileRepository* repository;
     DataFrame* dfOutput;
@@ -77,7 +83,8 @@ public:
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
-    void execute();
+    //Implementação específica do loader para o execute
+    void execute(int numThreads = 1);
 private:
     FileRepository* repository;
     DataFrame* dfInput;

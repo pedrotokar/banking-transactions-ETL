@@ -4,3 +4,5 @@ out
 .vscode
 .github
 data/output*
+data/mock_emap.csv
+data/mock_emap_processed.csv
