@@ -66,23 +66,74 @@ void Transformer::execute(){
 //    std::cout << "called transform" << std::endl;
 }
 
-void Extractor::extract(DataFrame* & output) {   
+void Extractor::addOutput(DataFrame* spec) {
+    outputDFs.push_back(spec);
+    dfOutput = outputDFs.at(0);
+}
+
+void Extractor::extract(int numThreads) {  
+    std::thread threadProducer(&Extractor::producer, this);
+
+    std::vector<std::thread> consumers;
+    for (int i = 0; i < numThreads; ++i) {
+        consumers.emplace_back(&Extractor::consumer, this);
+    }    
+
+    if (threadProducer.joinable()) threadProducer.join();
+    for (auto& threadConsumer : consumers) {
+        if (threadConsumer.joinable()) threadConsumer.join();
+    }
+};
+
+void Extractor::producer() {   
     while (true) {
+        // Pega cada linha da base de dados
         DataRow row = repository->getRow();
 
+        // Verifica se terminou
         if (!repository->hasNext()) break;
 
-        auto parsedRow = repository->parseRow(row);
-        output->addRow(parsedRow);
-    };
+        // Converte para string a linha do repostitório
+        StrRow parsedRow = repository->parseRow(row);
 
+        // Adiciona a linha ao buffer
+        buffer.push(parsedRow);
+        // Notifica aos consumidores
+        cv.notify_all();
+    };
+    // cv.notify_all();
+    // Fecha o arquivo e informa que encerrou a produção
     repository->close();
+    endProduction = true;
 };
+
+void Extractor::consumer() {   
+    while (true) {
+        std::unique_lock<std::mutex> lock(bufferMutex);
+
+        // Aguarda até que o buffer não esteja vazio enquanto há produção
+        cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
+        // Verifica se terminou o serviço
+        if (buffer.empty() && endProduction) break;
+        // Pega o primeira linha no buffer
+        StrRow parsedRow = buffer.front();
+        buffer.pop();
+        
+        // Libera o mutex antes de acessar dfOutput
+        lock.unlock(); 
+
+        // Adiciona o dado processado ao dfOutput
+        {
+            std::lock_guard<std::mutex> dfLock(dfMutex);
+            dfOutput->addRow(parsedRow);
+        }
+        cv.notify_all();
+    }
+}
 
 void Extractor::execute(){
     auto start = std::chrono::high_resolution_clock::now();
-    DataFrame* outDF = outputDFs.at(0);
-    extract(outDF);
+    extract(1);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;

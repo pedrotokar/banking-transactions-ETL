@@ -49,13 +49,23 @@ public:
 class Extractor : public Task {
 public:
     virtual ~Extractor() = default;
-    void extract(DataFrame* & output);
-
+    void extract(int numThreads);
+    void addOutput(DataFrame* outputDF);
     void addRepo(FileRepository* repo){ repository = repo;};
 
     void execute();
 private:
     FileRepository* repository;
+    DataFrame* dfOutput;
+
+    std::queue<StrRow> buffer;
+    std::mutex bufferMutex;
+    std::mutex dfMutex;
+    std::condition_variable cv;
+    std::atomic<bool> endProduction;
+
+    void producer();
+    void consumer();
 };
 
 class Loader : public Task {
