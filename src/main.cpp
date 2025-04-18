@@ -463,6 +463,7 @@ void testeTrigger2(){
 
 }
 
+std::mutex filterMutex;
 class FilterDFTransformer : public Transformer {
 private:
     std::vector<std::string> filterStrings;
@@ -494,7 +495,10 @@ public:
                     auto idade = df->getElement<int>(index, 1); row.push_back(idade);
                     auto ano = df->getElement<int>(index, 2); row.push_back(ano);
                     auto salario = df->getElement<double>(index, 3); row.push_back(salario);
-                    outDf->addRow(row);
+                    {
+                        std::unique_lock<std::mutex> lock(filterMutex);
+                        outDf->addRow(row);
+                    }
                     break;
                 }
             }
@@ -503,6 +507,7 @@ public:
     }
 };
 
+std::mutex sumMutex;
 class AgeSumTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -536,12 +541,26 @@ public:
         auto outDf = outputs.at(0);
 
         for (const auto& [chave, valor] : sum){
-            auto row = std::vector<std::any>{chave, valor};
-            outDf->addRow(row);
+            {
+                std::unique_lock<std::mutex> lock(sumMutex);
+                bool alreadyPlaced = false;
+                for(size_t row = 0; row < outDf->size(); row++){
+                    if(outDf->getElement<std::string>(row, 0) == chave){
+                        alreadyPlaced = true;
+                        outDf->setElement<int>(row, 1, outDf->getElement<int>(row, 1) + valor);
+                        break;
+                    }
+                }
+                if(not alreadyPlaced){
+                    auto row = std::vector<std::any>{chave, valor};
+                    outDf->addRow(row);
+                }
+            }
         }
         std::cout << "[AgeSumTransformer] Concluído: somas foram computadas." << std::endl;
     }
 };
+
 
 class SalarySumTransformer : public Transformer {
 public:
@@ -583,6 +602,7 @@ public:
     }
 };
 
+std::mutex counterMutex;
 class CounterTransformer : public Transformer {
 public:
     void transform(std::vector<DataFrame*>& outputs,
@@ -599,8 +619,8 @@ public:
             return;
         }
 
-        std::cout << "[CounterTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        //std::cout << "[CounterTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        std::cout << "[CounterTransformer] Tamanho do dataframe de entrada: " << df->size() << " | ";
+        std::cout << "Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         std::unordered_map<std::string, int> counts;
 
@@ -612,8 +632,21 @@ public:
         auto outDf = outputs.at(0);
 
         for (const auto& [chave, valor] : counts){
-            auto row = std::vector<std::any>{chave, valor};
-            outDf->addRow(row);
+            {
+                std::unique_lock<std::mutex> lock(counterMutex);
+                bool alreadyPlaced = false;
+                for(size_t row = 0; row < outDf->size(); row++){
+                    if(outDf->getElement<std::string>(row, 0) == chave){
+                        alreadyPlaced = true;
+                        outDf->setElement<int>(row, 1, outDf->getElement<int>(row, 1) + valor);
+                        break;
+                    }
+                }
+                if(not alreadyPlaced){
+                    auto row = std::vector<std::any>{chave, valor};
+                    outDf->addRow(row);
+                }
+            }
         }
         std::cout << "[CounterTransformer] Concluído: contagens foram computadas." << std::endl;
     }
@@ -872,8 +905,9 @@ void testeTransformer(int nThreads = 1){
     //================================================//
     std::cout << "\nStartando trigger...\n";
     e0->execute();
-    t11->executeWithThreading(1);
-    t21->executeWithThreading(10);
+    t11->executeWithThreading(nThreads);
+    t21->executeWithThreading(nThreads);
+    t22->executeWithThreading(nThreads);
 //    trigger.start(nThreads);
     std::cout << "\nTrigger finalizado.\n";
 
@@ -888,7 +922,7 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    testeTransformer(7);
+    testeTransformer(1);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;

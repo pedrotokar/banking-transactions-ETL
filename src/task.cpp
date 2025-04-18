@@ -121,18 +121,17 @@ void Transformer::executeWithThreading(int numThreads = 2){
         }
     }
     auto start = std::chrono::high_resolution_clock::now();
-//    std::mutex transformerMutex;
-    std::vector<std::thread> transformCalls;
-    transformCalls.reserve(numThreads);
+    std::vector<std::thread> threadList;
+    threadList.reserve(numThreads);
 
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
-        transformCalls.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
+        threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
 //        transform(outputDFs, threadInputs.at(tIndex));
     }
-    for(auto& transformCall: transformCalls){
-        if(transformCall.joinable()){
-            transformCall.join();
+    for(auto& workingThread: threadList){
+        if(workingThread.joinable()){
+            workingThread.join();
         }
     }
     auto end = std::chrono::high_resolution_clock::now();
