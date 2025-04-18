@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := all
 
 SRC_DIR = src
 INCLUDE_DIR = include
@@ -24,3 +24,6 @@ help: ## Show this help
 
 clean: ## Clean created files
 	rm -f $(wildcard ./*.exe) $(wildcard ./*out*)
+
+csvgen:
+	python extras/csv_creator/make_mock_csv.py
