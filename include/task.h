@@ -53,6 +53,7 @@ private:
 
 class Extractor : public Task {
 public:
+    Extractor(): bufferMutex(), dfMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
     void extract(int numThreads);
     void addOutput(DataFrame* outputDF);
@@ -76,6 +77,7 @@ private:
 
 class Loader : public Task {
 public:
+    Loader(): bufferMutex(), repoMutex(), cv(), endProduction(false) {};
     virtual ~Loader() = default;
     void createRepo(int numThreads);
     void actualizeRepo(int numThreads);

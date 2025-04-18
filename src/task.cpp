@@ -150,20 +150,23 @@ void Extractor::addOutput(DataFrame* spec) {
     dfOutput = outputDFs.at(0);
 }
 
-void Extractor::extract(int numThreads) {  
+void Extractor::extract(int numThreads) {
     std::thread threadProducer(&Extractor::producer, this);
 
     std::vector<std::thread> consumers;
     for (int i = 0; i < numThreads; ++i) {
         consumers.emplace_back(&Extractor::consumer, this);
-    }    
+    }
+
     if (threadProducer.joinable()) threadProducer.join();
     for (auto& threadConsumer : consumers) {
-        if (threadConsumer.joinable()) threadConsumer.join();
+        if (threadConsumer.joinable()){
+             threadConsumer.join();
+        }
     }
 };
 
-void Extractor::producer() {   
+void Extractor::producer() {
     auto maxBufferSize = buffer.size() + 10000;
     while (true) {
         // Pega cada linha da base de dados
@@ -171,40 +174,43 @@ void Extractor::producer() {
 
         // Verifica se terminou
         if (!repository->hasNext()) break;
-   
+
         // Converte para string a linha do repostitório
         StrRow parsedRow = repository->parseRow(row);
-     
+        //std::cout << "Produtor " << buffer.size() << std::endl;
         std::unique_lock<std::mutex> lock(bufferMutex);
         cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
 
         // Adiciona a linha ao buffer
         buffer.push(parsedRow);
 
+        lock.unlock();
         // Notifica aos consumidores
         cv.notify_all();
     };
-    // cv.notify_all();
     // Fecha o arquivo e informa que encerrou a produção
     repository->close();
     endProduction = true;
+    cv.notify_all();
 };
 
 
-void Extractor::consumer() {   
+void Extractor::consumer() {
     while (true) {
         std::unique_lock<std::mutex> lock(bufferMutex);
 
         // Aguarda até que o buffer não esteja vazio enquanto há produção
         cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
         // Verifica se terminou o serviço
+
         if (buffer.empty() && endProduction) break;
         // Pega o primeira linha no buffer
         StrRow parsedRow = buffer.front();
+
         buffer.pop();
-        
+
         // Libera o mutex antes de acessar dfOutput
-        lock.unlock(); 
+        lock.unlock();
 
         // Adiciona o dado processado ao dfOutput
         {
@@ -212,10 +218,10 @@ void Extractor::consumer() {
             dfOutput->addRow(parsedRow);
 
         }
-
         cv.notify_all();
     }
 }
+
 
 void Extractor::execute(int numThreads){
     auto start = std::chrono::high_resolution_clock::now();
@@ -299,9 +305,9 @@ void Loader::producer() {
         // Notifica aos consumidores
         cv.notify_all();
     };
-    // cv.notify_all();
 
     endProduction = true;
+    cv.notify_all();
 };
 
 void Loader::consumer() {   
