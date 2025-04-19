@@ -799,6 +799,47 @@ void testeGeralEmap(int nThreads = 1){
 }
 
 
+void testeBatch() {
+    FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
+
+    DataFrame df;
+    df.addColumn<string>("nome");
+    df.addColumn<int>("idade");
+    df.addColumn<int>("ano");
+    df.addColumn<double>("salario");
+
+    // while (true) {
+    //     auto line = inputRepository->getRow();
+    //     if (!inputRepository->hasNext()) { break; }
+    //     df.addRow(inputRepository->parseRow(line));
+    // }
+
+    while (true) {
+        auto batch = inputRepository->getBatch();
+        auto parsed = inputRepository->parseBatch(batch);
+        for (auto& row : parsed) {
+            df.addRow(row);
+        }
+        if (!inputRepository->hasNext()) { break; }
+    }
+
+    cout << df.toString() << endl;
+    cout << df.size() << endl;
+    
+    // auto batch = inputRepository->getBatch();
+    // auto parsed = inputRepository->parseBatch(batch);
+    // for (auto& row : parsed) {
+    //     df.addRow(row);
+    // }
+    // batch = inputRepository->getBatch();
+    // parsed = inputRepository->parseBatch(batch);
+    // for (auto& row : parsed) {
+    //     df.addRow(row);
+    // }
+
+    // cout << "DataFrame after adding a new row:\n" << df.toString(1000) << endl;
+}
+
 int main(int argc, char *argv[]) {
     int nThreads = 1;
     if (argc > 1) {
@@ -807,7 +848,7 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    testeGeralEmap(nThreads);
+    testeBatch();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
