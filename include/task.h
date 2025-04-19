@@ -80,7 +80,7 @@ public:
     Loader(): bufferMutex(), repoMutex(), cv(), endProduction(false) {};
     virtual ~Loader() = default;
     void createRepo(int numThreads);
-    void actualizeRepo(int numThreads);
+    void updateRepo(int numThreads);
     void addRows(int numThreads);
 
     void addRepo(FileRepository* repo){ repository = repo;};

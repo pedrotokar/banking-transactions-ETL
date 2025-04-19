@@ -151,19 +151,37 @@ void Extractor::addOutput(DataFrame* spec) {
 }
 
 void Extractor::extract(int numThreads) {
-    std::thread threadProducer(&Extractor::producer, this);
+    // Multithread
+    if (numThreads > 1) {
+        std::thread threadProducer(&Extractor::producer, this);
 
-    std::vector<std::thread> consumers;
-    for (int i = 0; i < numThreads; ++i) {
-        consumers.emplace_back(&Extractor::consumer, this);
-    }
+        std::vector<std::thread> consumers;
+        for (int i = 0; i < numThreads; ++i) {
+            consumers.emplace_back(&Extractor::consumer, this);
+        }    
 
-    if (threadProducer.joinable()) threadProducer.join();
-    for (auto& threadConsumer : consumers) {
-        if (threadConsumer.joinable()){
-             threadConsumer.join();
+        if (threadProducer.joinable()) threadProducer.join();
+        for (auto& threadConsumer : consumers) {
+            if (threadConsumer.joinable()) threadConsumer.join();
         }
-    }
+    } 
+    // Uma única thread
+    else {  
+        // Percorre toda a base de dados
+        while (true) {
+            // Pega cada linha
+            DataRow row = repository->getRow();
+
+            // Verifica se já percorreu a base completamente
+            if (!repository->hasNext()) break;
+            
+            // Processa cada linha
+            StrRow parsedRow = repository->parseRow(row);
+            // Adicina a linha processada no DF de output
+            dfOutput->addRow(parsedRow);
+        };
+    };
+    repository->close();
 };
 
 void Extractor::producer() {
@@ -177,13 +195,15 @@ void Extractor::producer() {
 
         // Converte para string a linha do repostitório
         StrRow parsedRow = repository->parseRow(row);
-        //std::cout << "Produtor " << buffer.size() << std::endl;
+
+        // Mutex para caso o buffer se encha
         std::unique_lock<std::mutex> lock(bufferMutex);
         cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
 
         // Adiciona a linha ao buffer
         buffer.push(parsedRow);
 
+        // Libera o mutex
         lock.unlock();
         // Notifica aos consumidores
         cv.notify_all();
@@ -201,12 +221,12 @@ void Extractor::consumer() {
 
         // Aguarda até que o buffer não esteja vazio enquanto há produção
         cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
-        // Verifica se terminou o serviço
 
+        // Verifica se terminou o serviço
         if (buffer.empty() && endProduction) break;
+
         // Pega o primeira linha no buffer
         StrRow parsedRow = buffer.front();
-
         buffer.pop();
 
         // Libera o mutex antes de acessar dfOutput
@@ -225,7 +245,7 @@ void Extractor::consumer() {
 
 void Extractor::execute(int numThreads){
     auto start = std::chrono::high_resolution_clock::now();
-    extract(1);
+    extract(numThreads);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
@@ -252,35 +272,41 @@ void Loader::getInput() {
 
 void Loader::createRepo(int numThreads) {   
     repository->clear();
+
     StrRow header = dfInput->getHeader();
     repository->appendHeader(header);
+
     addRows(numThreads);
 };
 
-void Loader::actualizeRepo(int numThreads) {   
+void Loader::updateRepo(int numThreads) {   
     return;    
 };
 
-/*void Loader::addRows() {   
-    for (size_t i = 0; i < dfInput->size(); i++)
-    {
-        std::vector<std::string> row = dfInput->getRow(i);
-        repository->appendRow(row);
-    }
-    repository->close();
-};*/
-
 void Loader::addRows(int numThreads) {  
-    std::thread threadProducer(&Loader::producer, this);
+    // Multithread
+    if (numThreads > 1) {
+        std::thread threadProducer(&Loader::producer, this);
 
-    std::vector<std::thread> consumers;
-    for (int i = 0; i < numThreads; ++i) {
-        consumers.emplace_back(&Loader::consumer, this);
-    }    
+        std::vector<std::thread> consumers;
+        for (int i = 0; i < numThreads; ++i) {
+            consumers.emplace_back(&Loader::consumer, this);
+        }    
 
-    if (threadProducer.joinable()) threadProducer.join();
-    for (auto& threadConsumer : consumers) {
-        if (threadConsumer.joinable()) threadConsumer.join();
+        if (threadProducer.joinable()) threadProducer.join();
+        for (auto& threadConsumer : consumers) {
+            if (threadConsumer.joinable()) threadConsumer.join();
+        }
+    } 
+    // Uma única thread
+    else {  
+        // Percorre por todo DF de input
+        for (size_t i = 0; i < dfInput->size(); i++) {
+            // Pega cada linha do DF
+            std::vector<std::string> row = dfInput->getRow(i);
+            // Adiciona a linha ao repositório
+            repository->appendRow(row);
+        }
     }
     repository->close();
 };
