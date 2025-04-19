@@ -14,7 +14,7 @@ using namespace std;
 class SumAgeTransformerTestInterface : public Transformer {
 public:
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[SumAgeTransformer] Nenhum DataFrame na entrada.\n";
@@ -62,7 +62,7 @@ public:
 class SumAgeTransformerTestInterface_nosense : public Transformer {
     public:
         void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                        const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                        const std::vector<DataFrameWithIndexes>& inputs) override
         {
             if (inputs.empty()) {
                 std::cout << "[SumAgeTransformerTestInterface_nosense] Nenhum DataFrame na entrada.\n";
@@ -125,7 +125,7 @@ class SumAgeTransformerTestInterface_nosense : public Transformer {
 class DuplicateDFTransformer : public Transformer {
 public:
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[DuplicateDFTransformer] Nenhum DataFrame na entrada.\n";
@@ -470,7 +470,7 @@ private:
 public:
     FilterDFTransformer(std::vector<std::string> filter = {}): filterStrings(filter), filterMutex() {};
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[filterDFTransformer] Nenhum DataFrame na entrada.\n";
@@ -513,7 +513,7 @@ private:
 public:
     AgeSumTransformer(): sumMutex() {};
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[AgeSumTransformer] Nenhum DataFrame na entrada.\n";
@@ -570,7 +570,7 @@ private:
 public:
     SalarySumTransformer(): salarySumMutex() {};
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[SalarySumTransformer] Nenhum DataFrame na entrada.\n";
@@ -626,7 +626,7 @@ private:
 public:
     CounterTransformer(): counterMutex() {};
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[CounterTransformer] Nenhum DataFrame na entrada.\n";
@@ -675,7 +675,7 @@ public:
 class MeanTransformer : public Transformer {
 public:
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                   const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) override
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[MeanTransformer] Nenhum DataFrame na entrada.\n";

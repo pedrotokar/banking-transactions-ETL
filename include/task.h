@@ -13,7 +13,7 @@
 #include "datarepository.h"
 #include "types.h"
 
-struct OutputSpec {};
+using DataFrameWithIndexes = std::pair<std::vector<int>, std::shared_ptr<DataFrame>>;
 
 class Task : public std::enable_shared_from_this<Task>{
 public:
@@ -40,10 +40,11 @@ protected:
 
 class Transformer : public Task {
 public:
+    Transformer():consumingCounterMutex() {};
     virtual ~Transformer() = default;
     //Função virtual que qualquer transformer deve implementar
     virtual void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                           const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) = 0;
+                           const std::vector<DataFrameWithIndexes>& inputs) = 0;
 
     //Implementação específica do transformer para o execute
     void execute(int numThreads = 1) override;
@@ -51,12 +52,15 @@ public:
 
 private:
     void executeWithThreading(int numThreads);
+
+protected:
+    std::mutex consumingCounterMutex;
 };
 
 
 class Extractor : public Task {
 public:
-    Extractor(): bufferMutex(), dfMutex(), cv(), endProduction(false) {};
+    Extractor(): bufferMutex(), dfMutex(), consumingCounterMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
     void extract(int numThreads);
     void addOutput(std::shared_ptr<DataFrame> outputDF);
@@ -72,6 +76,7 @@ private:
     std::queue<StrRow> buffer;
     std::mutex bufferMutex;
     std::mutex dfMutex;
+    std::mutex consumingCounterMutex;
     std::condition_variable cv;
     std::atomic<bool> endProduction;
 

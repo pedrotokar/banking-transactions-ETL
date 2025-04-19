@@ -64,6 +64,7 @@ const std::vector<std::shared_ptr<DataFrame>>& Task::getOutputs(){
 
 //Coloca a lógica específica do transformador para limpar seus DFs de saída
 void Transformer::decreaseConsumingCounter(){
+    std::unique_lock<std::mutex> lock(consumingCounterMutex);
     tasksConsumingOutput--;
     if(tasksConsumingOutput == 0){
         for(size_t i = 0; i < outputDFs.size(); i++){
@@ -78,7 +79,7 @@ void Transformer::decreaseConsumingCounter(){
 void Transformer::execute(int numThreads){
     numThreads += 2;
     if(numThreads == 1){
-        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
+        std::vector<DataFrameWithIndexes> inputs;
         for (auto previousTask : previousTasks){
             size_t dataFrameCounter = previousTask.first->getOutputs().size();
             for (size_t i = 0; i < dataFrameCounter; i++){
@@ -111,11 +112,10 @@ void Transformer::execute(int numThreads){
 
 //Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
 void Transformer::executeWithThreading(int numThreads){
-    std::vector<
-        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>
-    > threadInputs; //Vai ser um vector do que seria a entrada pra cada df. Vou fazer uns typdef aqui depois pq tá feio kk
+    //Um vector contendo as entradas que serão passadas para cada thread
+    std::vector<std::vector<DataFrameWithIndexes>> threadInputs;
     for (int i = 0; i < numThreads; i++){
-        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
+        std::vector<DataFrameWithIndexes> inputs;
         threadInputs.push_back(inputs); //Input para cada thread. Começa vazio
     }
     for (auto previousTask : previousTasks){ //Roda as tasks anteriores
@@ -169,13 +169,13 @@ void Extractor::addOutput(std::shared_ptr<DataFrame> modelDF) {
 }
 
 void Extractor::decreaseConsumingCounter(){
+    std::unique_lock<std::mutex> lock(consumingCounterMutex);
     tasksConsumingOutput--;
     if(tasksConsumingOutput == 0){
         for(size_t i = 0; i < outputDFs.size(); i++){
             //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
             outputDFs[i] = outputDFs[i]->emptyCopy();
             dfOutput = outputDFs[i];
-
         }
         tasksConsumingOutput = nextTasks.size();
     }
@@ -283,7 +283,7 @@ void Extractor::execute(int numThreads){
 };
 
 void Loader::getInput() {
-    std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
+    std::vector<DataFrameWithIndexes> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){
