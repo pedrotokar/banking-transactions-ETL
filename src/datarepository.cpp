@@ -13,6 +13,7 @@ FileRepository::FileRepository(const std::string& fname,
                                  currentReadLine(0),
                                  totalLines(0) {
 
+    buffer.resize(chunkSize);
     outFile.open(fileName, std::ios::app | std::ios::out);
     inFile.open(fileName);
     if (!inFile.is_open() || !outFile.is_open()) {
@@ -44,6 +45,29 @@ DataRow FileRepository::getRow() {
         hasNextLine = false;
         return "";
     }
+}
+
+std::string FileRepository::getBatch() {
+    std::string leftover;
+
+    size_t startPos = inFile.tellg();
+    inFile.read(buffer.data(), chunkSize);
+    size_t bytesRead = inFile.gcount();
+
+    if (bytesRead == 0) { hasNextLine = false; return ""; }
+
+    std::string chunkData = std::string(buffer.data(), bytesRead);
+
+    size_t newlinePos = chunkData.find_last_of('\n');
+    if (newlinePos != std::string::npos) {
+        chunkData = chunkData.substr(0, newlinePos+1);
+        inFile.seekg(startPos + newlinePos + 1);
+    } else {
+        inFile.seekg(startPos + bytesRead);
+    }
+
+    // buffer.clear();
+    return chunkData;
 }
 
 void FileRepository::appendRow(const DataRow& data) {
@@ -82,6 +106,22 @@ StrRow FileRepository::parseRow(const DataRow& line) const {
     }
     parsedRow.emplace_back(line.substr(start));
     return parsedRow;
+}
+
+std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) const {
+    std::vector<StrRow> rows;
+    StrRow row;
+
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = batch.find('\n', start)) != std::string::npos) {
+        row = parseRow(batch.substr(start, end - start));
+        rows.push_back(row);
+        row.clear();
+        start = end + 1;
+    }
+    return rows;
 }
 
 void FileRepository::close() {
