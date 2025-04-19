@@ -28,6 +28,8 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
 //Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
+    tasksConsumingOutput = nextTasks.size();
+
     std::vector<bool> splitDFs;
     for(size_t i = 0; i < outputDFs.size(); i++){
         splitDFs.push_back(true);
@@ -43,8 +45,8 @@ void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> spl
     previousTasks.push_back(pair);
 }
 
-void Task::addOutput(DataFrame* spec) {
-    outputDFs.push_back(spec);
+void Task::addOutput(std::shared_ptr<DataFrame> modelDF) {
+    outputDFs.push_back(modelDF->emptyCopy());
 }
 
 //Getters
@@ -56,14 +58,27 @@ const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& Task::ge
     return previousTasks;
 }
 
-const std::vector<DataFrame*>& Task::getOutputs(){
+const std::vector<std::shared_ptr<DataFrame>>& Task::getOutputs(){
     return outputDFs;
+}
+
+//Coloca a lógica específica do transformador para limpar seus DFs de saída
+void Transformer::decreaseConsumingCounter(){
+    tasksConsumingOutput--;
+    if(tasksConsumingOutput == 0){
+        for(size_t i = 0; i < outputDFs.size(); i++){
+            //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
+            outputDFs[i] = outputDFs[i]->emptyCopy();
+        }
+        tasksConsumingOutput = nextTasks.size();
+    }
 }
 
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
 void Transformer::execute(int numThreads){
+    numThreads += 2;
     if(numThreads == 1){
-        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
         for (auto previousTask : previousTasks){
             size_t dataFrameCounter = previousTask.first->getOutputs().size();
             for (size_t i = 0; i < dataFrameCounter; i++){
@@ -79,9 +94,9 @@ void Transformer::execute(int numThreads){
             }
         }
         auto start = std::chrono::high_resolution_clock::now();
-        std::cout << "calling transform" << std::endl;
+        // std::cout << "calling transform" << std::endl;
         transform(outputDFs, inputs);
-        std::cout << "called transform" << std::endl;
+        // std::cout << "called transform" << std::endl;
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed = end - start;
         std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
@@ -89,15 +104,18 @@ void Transformer::execute(int numThreads){
     else{
         executeWithThreading(numThreads);
     }
+    for (auto previousTask: previousTasks){
+        previousTask.first->decreaseConsumingCounter();
+    }
 }
 
 //Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
 void Transformer::executeWithThreading(int numThreads){
     std::vector<
-        std::vector<std::pair<std::vector<int>, DataFrame*>>
+        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>
     > threadInputs; //Vai ser um vector do que seria a entrada pra cada df. Vou fazer uns typdef aqui depois pq tá feio kk
     for (int i = 0; i < numThreads; i++){
-        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
         threadInputs.push_back(inputs); //Input para cada thread. Começa vazio
     }
     for (auto previousTask : previousTasks){ //Roda as tasks anteriores
@@ -129,7 +147,7 @@ void Transformer::executeWithThreading(int numThreads){
     std::vector<std::thread> threadList;
     threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
-        std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
+        // std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
         threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
     }
@@ -145,9 +163,22 @@ void Transformer::executeWithThreading(int numThreads){
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 }
 
-void Extractor::addOutput(DataFrame* spec) {
-    outputDFs.push_back(spec);
+void Extractor::addOutput(std::shared_ptr<DataFrame> modelDF) {
+    outputDFs.push_back(modelDF->emptyCopy());
     dfOutput = outputDFs.at(0);
+}
+
+void Extractor::decreaseConsumingCounter(){
+    tasksConsumingOutput--;
+    if(tasksConsumingOutput == 0){
+        for(size_t i = 0; i < outputDFs.size(); i++){
+            //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
+            outputDFs[i] = outputDFs[i]->emptyCopy();
+            dfOutput = outputDFs[i];
+
+        }
+        tasksConsumingOutput = nextTasks.size();
+    }
 }
 
 void Extractor::extract(int numThreads) {
@@ -252,7 +283,7 @@ void Extractor::execute(int numThreads){
 };
 
 void Loader::getInput() {
-    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){
@@ -367,8 +398,12 @@ void Loader::execute(int numThreads){
 
     getInput();
     createRepo(numThreads);
+    dfInput.reset();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
+    for (auto previousTask: previousTasks){
+        previousTask.first->decreaseConsumingCounter();
+    }
 };

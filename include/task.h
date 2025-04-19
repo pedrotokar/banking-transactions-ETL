@@ -21,30 +21,33 @@ public:
     //Interfaces para adicionar saídas e relacionamentos
     void addNext(std::shared_ptr<Task> nextTask);
     void addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs);
-    void addOutput(DataFrame* outputDF);
+    void addOutput(std::shared_ptr<DataFrame> outputDF);
     //Getters das saídas e relacionamentos
     const std::vector<std::shared_ptr<Task>>& getNextTasks();
     const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& getPreviousTasks();
-    const std::vector<DataFrame*>& getOutputs();
+    const std::vector<std::shared_ptr<DataFrame>>& getOutputs();
     //Função comum para todos os blocos do etl que deverá executar eles.
     virtual void execute(int numThreads = 1) {};
+    virtual void decreaseConsumingCounter() {};
 
 protected:
     //Vetores com as saídas e relacionamentos
     std::vector<std::shared_ptr<Task>> nextTasks;
-    std::vector<DataFrame*> outputDFs;
+    std::vector<std::shared_ptr<DataFrame>> outputDFs;
     std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>> previousTasks;
+    int tasksConsumingOutput = 0;
 };
 
 class Transformer : public Task {
 public:
     virtual ~Transformer() = default;
     //Função virtual que qualquer transformer deve implementar
-    virtual void transform(std::vector<DataFrame*>& outputs,
-                           const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) = 0;
+    virtual void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                           const std::vector<std::pair<std::vector<int>, std::shared_ptr<DataFrame>>>& inputs) = 0;
 
     //Implementação específica do transformer para o execute
     void execute(int numThreads = 1) override;
+    void decreaseConsumingCounter() override;
 
 private:
     void executeWithThreading(int numThreads);
@@ -56,14 +59,15 @@ public:
     Extractor(): bufferMutex(), dfMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
     void extract(int numThreads);
-    void addOutput(DataFrame* outputDF);
+    void addOutput(std::shared_ptr<DataFrame> outputDF);
     void addRepo(FileRepository* repo){ repository = repo;};
 
     //Implementação específica do extractor para o execute
-    void execute(int numThreads = 1);
+    void execute(int numThreads = 1) override;
+    void decreaseConsumingCounter() override;
 private:
     FileRepository* repository;
-    DataFrame* dfOutput;
+    std::shared_ptr<DataFrame> dfOutput;
 
     std::queue<StrRow> buffer;
     std::mutex bufferMutex;
@@ -89,7 +93,7 @@ public:
     void execute(int numThreads = 1);
 private:
     FileRepository* repository;
-    DataFrame* dfInput;
+    std::shared_ptr<DataFrame> dfInput;
     void getInput();
 
     std::queue<StrRow> buffer;
