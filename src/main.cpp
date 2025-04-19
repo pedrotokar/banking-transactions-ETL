@@ -230,72 +230,48 @@ DataFrame* buildDFteste3() {
     return df;
 }
 
-void teste3() {
-    DataFrame* df = buildDFteste3();
+DataFrame* buildDFtestExtractorAndLoader() {
+    //Dataframe inicial para testes
+    DataFrame* df = new DataFrame();
+    
+    auto posicaoColumn = std::make_shared<Column<std::string>>("posicao", 0, "");
+    auto idadeColumn = std::make_shared<Column<int>>("idade", 1, 0);
+    auto anoColumn = std::make_shared<Column<int>>("ano", 2, -100);
+    auto salarioColumn = std::make_shared<Column<double>>("salario", 3, -1);
 
-    FileRepository* repository = new FileRepository("data/teste_1.csv", ",", true);
+    df->addColumn(posicaoColumn);
+    df->addColumn(idadeColumn);
+    df->addColumn(anoColumn);
+    df->addColumn(salarioColumn);
+
+    return df;
+}
+void testExtractorAndLoader(int nThreads = 1) {
+    DataFrame* df = buildDFtestExtractorAndLoader();
+
+    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
     auto e0 = std::make_shared<Extractor>();
 
     e0->addOutput(df);
     e0->addRepo(repository);
 
-    e0->execute();
-
-    DataFrame* dfOut0 = buildDFteste3();
-
-    DataFrame* dfOut1 = buildDFteste3();
-
-    DataFrame* dfOut2 = new DataFrame();
-    auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
-    dfOut2->addColumn(ageSumColumn);
-
-    cout << "Initial dataframe:\n" << df->toString() << endl;
-
-    cout << "Output dataframe t1:\n" << dfOut1->toString() << endl;
-
-    cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
-
-    //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
-    auto t0 = std::make_shared<DuplicateDFTransformer>();
-    auto t1 = std::make_shared<DuplicateDFTransformer>();
-    auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
-    
-    //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
-    t0->addOutput(dfOut0);
-    t1->addOutput(dfOut1);
-    t2->addOutput(dfOut2);
-
-    e0->addNext(t0);
-    cout << "Tamanho do nextTasks do e0: " << e0->getNextTasks().size() << endl;
-    cout << "Tamanho do previousTasks do t0: " << t0->getPreviousTasks().size() << endl;
-    //T0 é um mock - representa um tratador que já foi completo anteriormente
-    //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
-    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
-    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
-
     auto l0 = std::make_shared<Loader>();
-    t1->addNext(l0);
 
-    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
-    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    e0->addNext(l0);
 
-    //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
-    //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
-    t0->execute();
-    cout << "Output dataframe t0 after operation:\n" << dfOut0->toString() << endl;
+    FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
+    l0->addRepo(outputRepository);
     
-    t1->execute();
-    cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
-    
-    // FileRepository* new_repository = new FileRepository("data/result_1_teste_3.csv", ",", true);
-    l0->addRepo(repository);
-    l0->execute();
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
 
-    t2->execute();
-    cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
+    std::cout << "\nStartando trigger...\n";
+    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n" << std::endl;
 }
 
 void teste4() {
@@ -553,7 +529,7 @@ public:
                         break;
                     }
                 }
-                if(not alreadyPlaced){
+                if(!alreadyPlaced){
                     auto row = std::vector<std::any>{chave, valor};
                     outDf->addRow(row);
                 }
@@ -646,7 +622,7 @@ public:
                         break;
                     }
                 }
-                if(not alreadyPlaced){
+                if(!alreadyPlaced){
                     auto row = std::vector<std::any>{chave, valor};
                     outDf->addRow(row);
                 }
@@ -975,13 +951,13 @@ void testeBatch() {
 }
 
 int main(int argc, char *argv[]) {
-    int nThreads = 1;
-    if (argc > 1) {
-        nThreads = std::stoi(argv[1]);
-    }
+    // int nThreads = 1;
+    // if (argc > 1) {
+    //     nThreads = std::stoi(argv[1]);
+    // }
 
     auto start = std::chrono::high_resolution_clock::now();
-
+    // testExtractorAndLoader();
     //testeTransformer(3);
     testeGeralEmap(1);
 
