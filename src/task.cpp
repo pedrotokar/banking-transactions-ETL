@@ -25,6 +25,10 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
     return indexes;
 }
 
+// ###############################################################################################
+// ###############################################################################################
+// Métodos da classe Task
+
 //Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
@@ -59,6 +63,22 @@ const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& Task::ge
 const std::vector<DataFrame*>& Task::getOutputs(){
     return outputDFs;
 }
+
+void Task::incrementExecutedPreviousTasks(){
+    cntExecutedPreviousTasks++;
+}
+
+const bool Task::checkPreviousTasks() const {
+    return cntExecutedPreviousTasks == previousTasks.size();
+}
+
+void Task::resetExecutedPreviousTasks(){
+    cntExecutedPreviousTasks = 0;
+}
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe transformer
 
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
 void Transformer::execute(int numThreads){
@@ -144,6 +164,10 @@ void Transformer::executeWithThreading(int numThreads){
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 }
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Extractor
 
 void Extractor::addOutput(DataFrame* spec) {
     outputDFs.push_back(spec);
@@ -250,6 +274,10 @@ void Extractor::execute(int numThreads){
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Loader
 
 void Loader::getInput() {
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
