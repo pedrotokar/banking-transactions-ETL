@@ -53,7 +53,7 @@ private:
 
 class Extractor : public Task {
 public:
-    Extractor(): bufferMutex(), dfMutex(), cv(), endProduction(false) {};
+    Extractor(): buffer(), maxBufferSize(), bufferMutex(), dfMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
     void extract(int numThreads);
     void addOutput(DataFrame* outputDF);
@@ -65,7 +65,8 @@ private:
     FileRepository* repository;
     DataFrame* dfOutput;
 
-    std::queue<std::vector<StrRow>> buffer;
+    std::queue<std::string> buffer;
+    size_t maxBufferSize;
     std::mutex bufferMutex;
     std::mutex dfMutex;
     std::condition_variable cv;

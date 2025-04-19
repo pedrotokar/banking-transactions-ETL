@@ -154,6 +154,8 @@ void Extractor::extract(int numThreads) {
     // Multithread
     std::cout << numThreads << std::endl;
     if (numThreads > 1) {
+        maxBufferSize = numThreads * numThreads;
+    
         std::thread threadProducer(&Extractor::producer, this);
 
         std::vector<std::thread> consumers;
@@ -186,20 +188,16 @@ void Extractor::extract(int numThreads) {
 };
 
 void Extractor::producer() {
-    auto maxBufferSize = buffer.size() + 10000;
     while (true) {
         // Pega um batch de linhas da base de dados
         std::string rows = repository->getBatch();
 
-        // Converte para string as linhas do repostitório
-        std::vector<StrRow> parsedRows = repository->parseBatch(rows);
-
         // Mutex para caso o buffer se encha
         std::unique_lock<std::mutex> lock(bufferMutex);
-        cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
+        cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
 
         // Adiciona o batch de linhas ao buffer
-        buffer.push(parsedRows);
+        buffer.push(rows);
         std::cout << "Produtor" << buffer.size() << std::endl;
         // Verifica se terminou
         if (!repository->hasNext()) break;
@@ -213,7 +211,7 @@ void Extractor::producer() {
     // Fecha o arquivo e informa que encerrou a produção
     repository->close();
     endProduction = true;
-    
+    std::cout << "acabemo d produzir" << std::endl;
     // Notifica aos consumidores que encerrou a produção
     cv.notify_all();
 };
@@ -230,9 +228,13 @@ void Extractor::consumer() {
         if (buffer.empty() && endProduction) break;
 
         // Pega o primeira linha no buffer
-        std::vector<StrRow> parsedRows = buffer.front();
+        std::string rows = buffer.front();
         buffer.pop();
+
         std::cout << "Consumidor" << buffer.size() << std::endl;
+        // Converte para string as linhas do repostitório
+        std::vector<StrRow> parsedRows = repository->parseBatch(rows);
+
         // Libera o mutex antes de acessar dfOutput
         lock.unlock();
 
@@ -241,6 +243,7 @@ void Extractor::consumer() {
             std::lock_guard<std::mutex> dfLock(dfMutex);
             for (StrRow parsedRow : parsedRows)
                 dfOutput->addRow(parsedRow);
+            std::cout << "df" << dfOutput->size() << std::endl;
         }
         cv.notify_all();
     }
@@ -248,7 +251,7 @@ void Extractor::consumer() {
 
 
 void Extractor::execute(int numThreads){
-    // numThreads += 2;
+    numThreads += 2;
     auto start = std::chrono::high_resolution_clock::now();
     extract(numThreads);
     auto end = std::chrono::high_resolution_clock::now();
