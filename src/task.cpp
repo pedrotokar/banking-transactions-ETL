@@ -39,13 +39,6 @@ const std::vector<DataFrame*>& Task::getOutputs(){
     return outputDFs;
 }
 
-void Task::incrementExecutedPreviousTasks() {
-    cntExecutedPreviousTasks++;
-}
-const bool Task::checkPreviousTasks() const {
-    return cntExecutedPreviousTasks == previousTasks.size();
-}
-
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
 void Transformer::execute(){
     std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;

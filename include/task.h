@@ -28,15 +28,12 @@ public:
     const std::vector<DataFrame*>& getOutputs();
     //Função comum para todos os blocos do etl que deverá executar eles.
     virtual void execute() {};
-    //Funções para verificar se a task possui pendencias
-    void incrementExecutedPreviousTasks();
-    const bool checkPreviousTasks() const;
+
 protected:
     //Vetores com as saídas e relacionamentos
     std::vector<std::shared_ptr<Task>> nextTasks;
     std::vector<DataFrame*> outputDFs;
     std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>> previousTasks;
-    size_t cntExecutedPreviousTasks=0;
 };
 
 class Transformer : public Task {

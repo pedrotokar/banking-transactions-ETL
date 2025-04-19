@@ -109,13 +109,8 @@ protected:
                 {
                     std::lock_guard<std::mutex> lock(queueMutex);
                     for (const auto& nextTask : currentTask->getNextTasks()) {
-                        nextTask->incrementExecutedPreviousTasks();
-                        
-                        // Verifica se todas as tasks anteriores foram executadas.
-                        if (nextTask->checkPreviousTasks()) {
-                            tasksQueue.push(nextTask);
-                            pendingTasks++;
-                        }
+                        tasksQueue.push(nextTask);
+                        pendingTasks++;
                     }
                 }
 
