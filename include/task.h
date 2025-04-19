@@ -65,7 +65,7 @@ private:
     FileRepository* repository;
     DataFrame* dfOutput;
 
-    std::queue<StrRow> buffer;
+    std::queue<std::vector<StrRow>> buffer;
     std::mutex bufferMutex;
     std::mutex dfMutex;
     std::condition_variable cv;

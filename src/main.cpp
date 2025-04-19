@@ -246,7 +246,7 @@ DataFrame* buildDFtestExtractorAndLoader() {
 
     return df;
 }
-void testExtractorAndLoader(int nThreads = 1) {
+void testExtractorAndLoader(int nThreads = 2) {
     DataFrame* df = buildDFtestExtractorAndLoader();
 
     FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
@@ -957,9 +957,9 @@ int main(int argc, char *argv[]) {
     // }
 
     auto start = std::chrono::high_resolution_clock::now();
-    // testExtractorAndLoader();
+    testExtractorAndLoader();
     //testeTransformer(3);
-    testeGeralEmap(1);
+    // testeGeralEmap(1);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
