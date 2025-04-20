@@ -2,6 +2,7 @@
 #include "dataframe.h"
 #include "datarepository.h"
 #include <memory>
+#include <stdexcept>
 #include <vector>
 #include <thread>
 #include <chrono>
@@ -25,26 +26,37 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
     return indexes;
 }
 
+// ###############################################################################################
+// ###############################################################################################
+// Métodos da classe Task
+
 //Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
-void Task::addNext(std::shared_ptr<Task> nextTask) {
-    nextTasks.push_back(nextTask);
-    std::vector<bool> splitDFs;
-    for(size_t i = 0; i < outputDFs.size(); i++){
-        splitDFs.push_back(true);
-    }
+void Task::addNext(std::shared_ptr<Task> nextTask, std::vector<bool> splitDFs) {
     nextTask->addPrevious(shared_from_this(), splitDFs);
+
+    nextTasks.push_back(nextTask);
+    tasksConsumingOutput = nextTasks.size();
 }
+
 //Todas as tasks precisam saber suas anteriores e próximas, por isso esse método também é necessário
 void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs){
     if(previousTask->getOutputs().size() != splitDFs.size()){
-        throw "The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs";
+        throw std::runtime_error("The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs.");
     }
     auto pair = make_pair(previousTask, splitDFs);
     previousTasks.push_back(pair);
 }
 
-void Task::addOutput(DataFrame* spec) {
-    outputDFs.push_back(spec);
+void Task::addOutput(std::shared_ptr<DataFrame> modelDF) {
+    outputDFs.push_back(modelDF->emptyCopy());
+}
+
+void Task::incrementExecutedPreviousTasks(){
+    cntExecutedPreviousTasks++;
+}
+
+void Task::resetExecutedPreviousTasks(){
+    cntExecutedPreviousTasks = 0;
 }
 
 //Getters
@@ -56,14 +68,36 @@ const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& Task::ge
     return previousTasks;
 }
 
-const std::vector<DataFrame*>& Task::getOutputs(){
+const std::vector<std::shared_ptr<DataFrame>>& Task::getOutputs(){
     return outputDFs;
+}
+
+const bool Task::checkPreviousTasks() const {
+    return cntExecutedPreviousTasks == previousTasks.size();
+}
+
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe transformer
+
+//Coloca a lógica específica do transformador para limpar seus DFs de saída
+void Transformer::decreaseConsumingCounter(){
+    std::unique_lock<std::mutex> lock(consumingCounterMutex);
+    tasksConsumingOutput--;
+    if(tasksConsumingOutput == 0){
+        for(size_t i = 0; i < outputDFs.size(); i++){
+            //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
+            outputDFs[i] = outputDFs[i]->emptyCopy();
+        }
+        tasksConsumingOutput = nextTasks.size();
+    }
 }
 
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
 void Transformer::execute(int numThreads){
     if(numThreads == 1){
-        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        std::vector<DataFrameWithIndexes> inputs;
         for (auto previousTask : previousTasks){
             size_t dataFrameCounter = previousTask.first->getOutputs().size();
             for (size_t i = 0; i < dataFrameCounter; i++){
@@ -79,9 +113,9 @@ void Transformer::execute(int numThreads){
             }
         }
         auto start = std::chrono::high_resolution_clock::now();
-        std::cout << "calling transform" << std::endl;
+        // std::cout << "calling transform" << std::endl;
         transform(outputDFs, inputs);
-        std::cout << "called transform" << std::endl;
+        // std::cout << "called transform" << std::endl;
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed = end - start;
         std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
@@ -89,23 +123,27 @@ void Transformer::execute(int numThreads){
     else{
         executeWithThreading(numThreads);
     }
+
+    //Limpeza pós execução
+    for (auto previousTask: previousTasks){
+        previousTask.first->decreaseConsumingCounter();
+    }
 }
 
 //Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
 void Transformer::executeWithThreading(int numThreads){
-    std::vector<
-        std::vector<std::pair<std::vector<int>, DataFrame*>>
-    > threadInputs; //Vai ser um vector do que seria a entrada pra cada df. Vou fazer uns typdef aqui depois pq tá feio kk
+    //Um vector contendo as entradas que serão passadas para cada thread
+    std::vector<std::vector<DataFrameWithIndexes>> threadInputs;
     for (int i = 0; i < numThreads; i++){
-        std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+        std::vector<DataFrameWithIndexes> inputs;
         threadInputs.push_back(inputs); //Input para cada thread. Começa vazio
     }
     for (auto previousTask : previousTasks){ //Roda as tasks anteriores
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){ //Roda cada df que pode sair da task anterior. Se só passar a ser um fixo por task, esse for iria de base
             auto dataFrame = previousTask.first->getOutputs().at(i);
-
             bool shouldSplit = previousTask.second.at(i);
+
             if(shouldSplit){
                 for (int tIndex = 0; tIndex < numThreads; tIndex++){
                     std::vector<int> indexes = getRangeVector(dataFrame->size(), numThreads, tIndex);
@@ -129,7 +167,6 @@ void Transformer::executeWithThreading(int numThreads){
     std::vector<std::thread> threadList;
     threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
-        std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
         threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
     }
@@ -145,9 +182,26 @@ void Transformer::executeWithThreading(int numThreads){
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 }
 
-void Extractor::addOutput(DataFrame* spec) {
-    outputDFs.push_back(spec);
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Extractor
+
+void Extractor::addOutput(std::shared_ptr<DataFrame> modelDF) {
+    outputDFs.push_back(modelDF->emptyCopy());
     dfOutput = outputDFs.at(0);
+}
+
+void Extractor::decreaseConsumingCounter(){
+    std::unique_lock<std::mutex> lock(consumingCounterMutex);
+    tasksConsumingOutput--;
+    if(tasksConsumingOutput == 0){
+        for(size_t i = 0; i < outputDFs.size(); i++){
+            //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
+            outputDFs[i] = outputDFs[i]->emptyCopy();
+            dfOutput = outputDFs[i];
+        }
+        tasksConsumingOutput = nextTasks.size();
+    }
 }
 
 void Extractor::extract(int numThreads) {
@@ -250,7 +304,7 @@ void Extractor::consumer() {
 
 
 void Extractor::execute(int numThreads){
-    numThreads += 2;
+    numThreads++;
     auto start = std::chrono::high_resolution_clock::now();
     extract(numThreads);
     auto end = std::chrono::high_resolution_clock::now();
@@ -258,8 +312,12 @@ void Extractor::execute(int numThreads){
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
 };
 
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Loader
+
 void Loader::getInput() {
-    std::vector<std::pair<std::vector<int>, DataFrame*>> inputs;
+    std::vector<DataFrameWithIndexes> inputs;
     for (auto previousTask : previousTasks){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){
@@ -371,13 +429,18 @@ void Loader::consumer() {
 }
 
 void Loader::execute(int numThreads){
-    // numThreads += 2;
     auto start = std::chrono::high_resolution_clock::now();
 
     getInput();
     createRepo(numThreads);
+    dfInput.reset();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
+
+    //Limpeza pós execução
+    for (auto previousTask: previousTasks){
+        previousTask.first->decreaseConsumingCounter();
+    }
 };

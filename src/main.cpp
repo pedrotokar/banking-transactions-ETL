@@ -13,15 +13,15 @@ using namespace std;
 
 class SumAgeTransformerTestInterface : public Transformer {
 public:
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[SumAgeTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[SumAgeTransformer] DataFrame nulo.\n";
             return;
@@ -50,7 +50,7 @@ public:
         }
 
         //Adiciona ao DataFrame de saída a soma
-        DataFrame* outDf = outputs.at(0);
+        std::shared_ptr<DataFrame> outDf = outputs.at(0);
 //        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
         std::vector<any> row {sum};
         outDf->addRow(row);
@@ -61,15 +61,15 @@ public:
 
 class SumAgeTransformerTestInterface_nosense : public Transformer {
     public:
-        void transform(std::vector<DataFrame*>& outputs,
-                        const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+        void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                        const std::vector<DataFrameWithIndexes>& inputs) override
         {
             if (inputs.empty()) {
                 std::cout << "[SumAgeTransformerTestInterface_nosense] Nenhum DataFrame na entrada.\n";
                 return;
             }
 
-            DataFrame* df = inputs[0].second;
+            std::shared_ptr<DataFrame> df = inputs[0].second;
             if (!df) {
                 std::cout << "[SumAgeTransformerTestInterface_nosense] DataFrame nulo.\n";
                 return;
@@ -113,7 +113,7 @@ class SumAgeTransformerTestInterface_nosense : public Transformer {
             }
 
             //Adiciona ao DataFrame de saída a soma
-            DataFrame* outDf = outputs.at(0);
+            std::shared_ptr<DataFrame> outDf = outputs.at(0);
     //        std::cout << typeid(typeof(*(outDf->columns.at(0)))).name() << std::endl;
             std::vector<any> row {sum};
             outDf->addRow(row);
@@ -124,15 +124,15 @@ class SumAgeTransformerTestInterface_nosense : public Transformer {
 
 class DuplicateDFTransformer : public Transformer {
 public:
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[DuplicateDFTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[DuplicateDFTransformer] DataFrame nulo.\n";
             return;
@@ -168,7 +168,7 @@ void teste2() {
     nameColumn->addValue("Bruno");
     nameColumn->addValue("Carla");
 
-        auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
     salaryColumn->addValue(5000.42);
     salaryColumn->addValue(7500.42);
     salaryColumn->addValue(9000.42);
@@ -213,9 +213,9 @@ void teste2() {
     cout << "DataFrame after adding a new row with strings:\n" << df.toString() << endl;
 }
 
-DataFrame* buildDFteste3() {
+std::shared_ptr<DataFrame> buildDFteste3() {
     //Dataframe inicial para testes
-    DataFrame* df = new DataFrame();
+    std::shared_ptr<DataFrame> df = std::make_shared<DataFrame>();
     
     auto ageColumn = std::make_shared<Column<int>>("age", 0, 0);
     auto nameColumn = std::make_shared<Column<std::string>>("name", 1, "");
@@ -230,10 +230,50 @@ DataFrame* buildDFteste3() {
     return df;
 }
 
-DataFrame* buildDFtestExtractorAndLoader() {
+void teste3() {
+    std::shared_ptr<DataFrame> df = buildDFteste3();
+    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
+
+    auto e0 = std::make_shared<Extractor>();
+    std::shared_ptr<DataFrame> dfOut0 = buildDFteste3();
+
+    std::shared_ptr<DataFrame> dfOut1 = buildDFteste3();
+
+    std::shared_ptr<DataFrame> dfOut2 = std::make_shared<DataFrame>();
+    auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
+    dfOut2->addColumn(ageSumColumn);
+
+    cout << "Initial dataframe:\n" << df->toString() << endl;
+
+    cout << "Output dataframe t1:\n" << dfOut1->toString() << endl;
+
+    cout << "Output dataframe t2:\n" << dfOut2->toString() << endl;
+
+    //t1 e t2 são dois tratadores para teste. t0 é um mock, representadno uma etapa já completada da pipeline
+    auto t0 = std::make_shared<DuplicateDFTransformer>();
+    auto t1 = std::make_shared<DuplicateDFTransformer>();
+    auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
+
+    //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
+    t0->addOutput(dfOut0);
+    t1->addOutput(dfOut1);
+    t2->addOutput(dfOut2);
+
+    e0->addNext(t0, {1});
+    cout << "Tamanho do nextTasks do e0: " << e0->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t0: " << t0->getPreviousTasks().size() << endl;
+    //T0 é um mock - representa um tratador que já foi completo anteriormente
+    //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
+    t0->addNext(t1, {1});
+    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
+    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    t1->addNext(t2, {1});
+}
+
+std::shared_ptr<DataFrame> buildDFtestExtractorAndLoader() {
     //Dataframe inicial para testes
-    DataFrame* df = new DataFrame();
-    
+    std::shared_ptr<DataFrame> df = std::make_shared<DataFrame>();
+
     auto posicaoColumn = std::make_shared<Column<std::string>>("posicao", 0, "");
     auto idadeColumn = std::make_shared<Column<int>>("idade", 1, 0);
     auto anoColumn = std::make_shared<Column<int>>("ano", 2, -100);
@@ -246,8 +286,9 @@ DataFrame* buildDFtestExtractorAndLoader() {
 
     return df;
 }
+
 void testExtractorAndLoader(int nThreads = 2) {
-    DataFrame* df = buildDFtestExtractorAndLoader();
+    std::shared_ptr<DataFrame> df = buildDFtestExtractorAndLoader();
 
     FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
@@ -258,11 +299,11 @@ void testExtractorAndLoader(int nThreads = 2) {
 
     auto l0 = std::make_shared<Loader>();
 
-    e0->addNext(l0);
+    e0->addNext(l0, {1});
 
     FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
     l0->addRepo(outputRepository);
-    
+
     RequestTrigger trigger;
     trigger.addExtractor(e0);
 
@@ -322,9 +363,9 @@ void teste4() {
 }
 
 void testeTrigger(){
-    DataFrame* df = buildDFteste3();
+    std::shared_ptr<DataFrame> df = buildDFteste3();
 
-    DataFrame* dfOut1 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut1 = std::make_shared<DataFrame>();
     auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
     auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
     auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
@@ -334,7 +375,7 @@ void testeTrigger(){
     dfOut1->addColumn(salaryColumn2);
     dfOut1->addColumn(extraIntColumn2);
 
-    DataFrame* dfOut2 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut2 = std::make_shared<DataFrame>();
     auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
     dfOut2->addColumn(ageSumColumn);
 
@@ -356,10 +397,10 @@ void testeTrigger(){
 
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
+    t0->addNext(t1, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
+    t1->addNext(t2, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     
@@ -376,9 +417,9 @@ void testeTrigger(){
 }
 
 void testeTrigger2(){
-    DataFrame* df = buildDFteste3();
+    std::shared_ptr<DataFrame> df = buildDFteste3();
 
-    DataFrame* dfOut1 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut1 = std::make_shared<DataFrame>();
     auto ageColumn2 =  std::make_shared<Column<int>>("age", 0, 0);
     auto nameColumn2 = std::make_shared<Column<std::string>>("name", 1, "");
     auto salaryColumn2 = std::make_shared<Column<double>>("salary", 2, -1);
@@ -388,11 +429,11 @@ void testeTrigger2(){
     dfOut1->addColumn(salaryColumn2);
     dfOut1->addColumn(extraIntColumn2);
 
-    DataFrame* dfOut2 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut2 = std::make_shared<DataFrame>();
     auto ageSumColumn = std::make_shared<Column<int>>("ageSum", 0, -1);
     dfOut2->addColumn(ageSumColumn);
 
-    DataFrame* dfOut3 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut3 = std::make_shared<DataFrame>();
     auto ageSumColumn2 = std::make_shared<Column<int>>("ageSum", 0, -1);
     dfOut3->addColumn(ageSumColumn2);
 
@@ -416,11 +457,11 @@ void testeTrigger2(){
 
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
+    t0->addNext(t1, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
-    t1->addNext(t3);
+    t1->addNext(t2, {1});
+    t1->addNext(t3, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     cout << "Tamanho do previousTasks do t3: " << t3->getPreviousTasks().size() << endl;
@@ -445,15 +486,15 @@ private:
     std::mutex filterMutex;
 public:
     FilterDFTransformer(std::vector<std::string> filter = {}): filterStrings(filter), filterMutex() {};
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[filterDFTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[FilterDFTransformer] DataFrame nulo.\n";
             return;
@@ -488,15 +529,15 @@ private:
     std::mutex sumMutex;
 public:
     AgeSumTransformer(): sumMutex() {};
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[AgeSumTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[AgeSumTransformer] DataFrame nulo.\n";
             return;
@@ -541,23 +582,26 @@ public:
 
 
 class SalarySumTransformer : public Transformer {
+private:
+    std::mutex salarySumMutex;
 public:
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    SalarySumTransformer(): salarySumMutex() {};
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[SalarySumTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[SalarySumTransformer] DataFrame nulo.\n";
             return;
         }
 
-        std::cout << "[SalarySumTransformer] Tamanho do dataframe de entrada: " << df->size() << std::endl;
-        //std::cout << "[SalarySumTransformer] Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
+        std::cout << "[SalarySumTransformer] Tamanho do dataframe de entrada: " << df->size() << " | ";
+        std::cout << "Tamanho da array de índices: " << inputs[0].first.size() << std::endl;
 
         std::unordered_map<std::string, double> sum;
 
@@ -573,8 +617,21 @@ public:
         auto outDf = outputs.at(0);
 
         for (const auto& [chave, valor] : sum){
-            auto row = std::vector<std::any>{chave, valor};
-            outDf->addRow(row);
+            {
+                std::unique_lock<std::mutex> lock(salarySumMutex);
+                bool alreadyPlaced = false;
+                for(size_t row = 0; row < outDf->size(); row++){
+                    if(outDf->getElement<std::string>(row, 0) == chave){
+                        alreadyPlaced = true;
+                        outDf->setElement<double>(row, 1, outDf->getElement<double>(row, 1) + valor);
+                        break;
+                    }
+                }
+                if(!alreadyPlaced){
+                    auto row = std::vector<std::any>{chave, valor};
+                    outDf->addRow(row);
+                }
+            }
         }
         std::cout << "[SalarySumTransformer] Concluído: somas foram computadas." << std::endl;
     }
@@ -585,15 +642,15 @@ private:
     std::mutex counterMutex;
 public:
     CounterTransformer(): counterMutex() {};
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[CounterTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* df = inputs[0].second;
+        std::shared_ptr<DataFrame> df = inputs[0].second;
         if (!df) {
             std::cout << "[CounterTransformer] DataFrame nulo.\n";
             return;
@@ -633,33 +690,37 @@ public:
 };
 
 class MeanTransformer : public Transformer {
+private:
+    std::mutex meanMutex;
 public:
-    void transform(std::vector<DataFrame*>& outputs,
-                   const std::vector<std::pair<std::vector<int>, DataFrame*>>& inputs) override
+    MeanTransformer(): meanMutex() {};
+    void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
     {
         if (inputs.empty()) {
             std::cout << "[MeanTransformer] Nenhum DataFrame na entrada.\n";
             return;
         }
 
-        DataFrame* dfSum = inputs[0].second;
+        std::shared_ptr<DataFrame> dfSum = inputs[0].second;
         if (!dfSum) {
             std::cout << "[MeanTransformer] DataFrame sum nulo.\n";
             return;
         }
-        DataFrame* dfCount = inputs[1].second;
+        std::shared_ptr<DataFrame> dfCount = inputs[1].second;
         if (!dfCount) {
             std::cout << "[MeanTransformer] DataFrame count nulo.\n";
             return;
         }
 
-        std::cout << "[MeanTransformer] Tamanho do dataframe 0 de entrada: " << dfSum->size() << std::endl;
-        //std::cout << "[MeanTransformer] Tamanho da array de índices 0: " << inputs[0].first.size() << std::endl;
-        std::cout << "[MeanTransformer] Tamanho do dataframe 1 de entrada: " << dfCount->size() << std::endl;
-        //std::cout << "[MeanTransformer] Tamanho da array de índices 1: " << inputs[1].first.size() << std::endl;
+        std::cout << "[MeanTransformer] Tamanho do dataframe 0 de entrada: " << dfSum->size() << " | ";
+        std::cout << "Tamanho da array de índices 0: " << inputs[0].first.size() << std::endl;
+        std::cout << "[MeanTransformer] Tamanho do dataframe 1 de entrada: " << dfCount->size() << " | ";
+        std::cout << "Tamanho da array de índices 1: " << inputs[1].first.size() << std::endl;
 
         auto outDf = outputs.at(0);
         for (auto index : inputs[0].first) {
+
             auto categoria = dfSum->getElement<std::string>(index, 0);
             auto soma = dfSum->getElement<int>(index, 1);
             int equivalentLine = -1;
@@ -671,8 +732,12 @@ public:
             }
             auto contagem = dfCount->getElement<int>(equivalentLine, 1);
             double mean = soma/contagem;
-            auto row = std::vector<std::any>{categoria, soma, contagem, mean};
-            outDf->addRow(row);
+            {
+                std::unique_lock<std::mutex> lock(meanMutex);
+                auto row = std::vector<std::any>{categoria, soma, contagem, mean};
+                outDf->addRow(row);
+            }
+
         }
 
         std::cout << "[MeanTransformer] Concluído: medias foram computadas." << std::endl;
@@ -683,52 +748,52 @@ void testeGeralEmap(int nThreads = 1){
     //================================================//
     //Definições dos dataframes de saída de cada bloco//
     //================================================//
-    DataFrame* dfOutE = new DataFrame();
+    std::shared_ptr<DataFrame> dfOutE = std::make_shared<DataFrame>();
     dfOutE->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOutE->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOutE->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOutE->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut11 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut11 = std::make_shared<DataFrame>();
     dfOut11->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut11->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOut11->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOut11->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut12 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut12 = std::make_shared<DataFrame>();
     dfOut12->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut12->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOut12->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOut12->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut21 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut21 = std::make_shared<DataFrame>();
     dfOut21->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut21->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
 
-    DataFrame* dfOut22 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut22 = std::make_shared<DataFrame>();
     dfOut22->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut22->addColumn(std::make_shared<Column<int>>("contagem", 1, 0));
 
-    DataFrame* dfOut23 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut23 = std::make_shared<DataFrame>();
     dfOut23->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut23->addColumn(std::make_shared<Column<double>>("soma salario", 1, -1.0));
 
-    DataFrame* dfOut24 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut24 = std::make_shared<DataFrame>();
     dfOut24->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut24->addColumn(std::make_shared<Column<int>>("soma idade", 1, 0));
 
-//    DataFrame* dfOut3 = new DataFrame();
-//    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
-//    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
-//    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
-//    dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
+    std::shared_ptr<DataFrame> dfOut3 = std::make_shared<DataFrame>();
+    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
+    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
+    dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
 
     cout << "Output dataframe specification for e:\n" << dfOutE->toString() << endl;
     cout << "Output dataframe specification for t1.1 and t1.2:\n" << dfOut11->toString() << endl;
     cout << "Output dataframe specification for t2.1 and t2.4:\n" << dfOut21->toString() << endl;
     cout << "Output dataframe specification for t2.2:\n" << dfOut22->toString() << endl;
     cout << "Output dataframe specification for t2.3:\n" << dfOut23->toString() << endl;
-//    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
+    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
 
 
     //================================================//
@@ -759,8 +824,8 @@ void testeGeralEmap(int nThreads = 1){
     auto t24 = std::make_shared<AgeSumTransformer>();
     t24->addOutput(dfOut24);
 
-//    auto t3 = std::make_shared<MeanTransformer>();
-//    t3->addOutput(dfOut3);
+    auto t3 = std::make_shared<MeanTransformer>();
+    t3->addOutput(dfOut3);
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
     auto l0 = std::make_shared<Loader>();
@@ -774,22 +839,33 @@ void testeGeralEmap(int nThreads = 1){
     auto l2 = std::make_shared<Loader>();
     l2->addRepo(outputRepositorySalary);
 
+    FileRepository* outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
+    auto l3 = std::make_shared<Loader>();
+    l3->addRepo(outputRepositoryMean);
+
     //================================================//
     //                Construção do DAG               //
     //================================================//
-    e0->addNext(t11);
-    e0->addNext(t12);
 
-    t11->addNext(t21);
-    t11->addNext(t22);
-    t11->addNext(t23);
-    t11->addNext(t24);
-//    t21->addNext(t3);
-//    t22->addNext(t3);
+    //essas arrays representam quais dfs do output do tratador devem ter os índices separados para as threads do próximo bloco.
+    //essencialmente só muda a entrada do método transform, se ele vai passar pra todas as threads o índice completo ou ele dividido.
+    //o tamanho de entrada da array é equivalente a quantidade de dfs de output do bloco. Se tirarmos isso de ser vários, seria só um bool
+    e0->addNext(t11, {1});
+    e0->addNext(t12, {1});
 
-    t12->addNext(l0);
-    t23->addNext(l2);
-    t24->addNext(l1);
+    t11->addNext(t21, {1});
+    t11->addNext(t22, {1});
+    t11->addNext(t23, {1});
+    t11->addNext(t24, {1});
+    //Cada thread vai receber a array de índices completa do t22, mas dividida do t21
+    //Preciso pensar em um exemplo mais legal do que esse...
+    t21->addNext(t3, {1});
+    t22->addNext(t3, {0});
+
+    t12->addNext(l0, {1});
+    t23->addNext(l2, {1});
+    t24->addNext(l1, {1});
+    t3->addNext(l3, {1});
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
@@ -801,11 +877,46 @@ void testeGeralEmap(int nThreads = 1){
     trigger.start(nThreads);
     std::cout << "\nTrigger finalizado.\n";
 
-    cout << "t2.1 dataframe after running:\n" << dfOut21->toString() << endl;
-    cout << "t2.2 dataframe after running:\n" << dfOut22->toString() << endl;
-    cout << "t2.3 dataframe after running:\n" << dfOut23->toString() << endl;
-    cout << "t2.4 dataframe after running:\n" << dfOut24->toString() << endl;
-//    cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
+    cout << "e0 internal df size after running: " <<e0->getOutputs().at(0)->size() << endl;
+    cout << "t1.1 internal df size after running: " << t11->getOutputs().at(0)->size() << endl;
+    cout << "t1.2 internal df size after running: " << t12->getOutputs().at(0)->size() << endl;
+    cout << "t2.1 internal df size after running: " << t21->getOutputs().at(0)->size() << endl;
+    cout << "t2.2 internal df size after running: " << t22->getOutputs().at(0)->size() << endl;
+    cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
+    cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
+    cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
+
+    //Temporário até arrumar o file repo
+    inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
+    e0->addRepo(inputRepository);
+
+    outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
+    l0->addRepo(outputRepositoryFilter);
+
+    outputRepositoryAges = new FileRepository("data/output_emap_age.csv", ",", true);
+    l1->addRepo(outputRepositoryAges);
+
+    outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
+    l2->addRepo(outputRepositorySalary);
+
+    outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
+    l3->addRepo(outputRepositoryMean);
+
+    std::cout << "\nStartando trigger...\n";
+    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n";
+
+    cout << "e0 internal df size after running: " <<e0->getOutputs().at(0)->size() << endl;
+    cout << "t1.1 internal df size after running: " << t11->getOutputs().at(0)->size() << endl;
+    cout << "t1.2 internal df size after running: " << t12->getOutputs().at(0)->size() << endl;
+    cout << "t2.1 internal df size after running: " << t21->getOutputs().at(0)->size() << endl;
+    cout << "t2.2 internal df size after running: " << t22->getOutputs().at(0)->size() << endl;
+    cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
+    cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
+    cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
+    while (true){
+        int i = 0;
+    }
 
 }
 
@@ -813,33 +924,33 @@ void testeTransformer(int nThreads = 1){
     //================================================//
     //Definições dos dataframes de saída de cada bloco//
     //================================================//
-    DataFrame* dfOutE = new DataFrame();
+    std::shared_ptr<DataFrame> dfOutE = std::make_shared<DataFrame>();
     dfOutE->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOutE->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOutE->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOutE->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut11 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut11 = std::make_shared<DataFrame>();
     dfOut11->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut11->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOut11->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOut11->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut12 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut12 = std::make_shared<DataFrame>();
     dfOut12->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut12->addColumn(std::make_shared<Column<int>>("idade", 1, -1));
     dfOut12->addColumn(std::make_shared<Column<int>>("ano", 2, -1));
     dfOut12->addColumn(std::make_shared<Column<double>>("salario", 3, -1.0));
 
-    DataFrame* dfOut21 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut21 = std::make_shared<DataFrame>();
     dfOut21->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut21->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
 
-    DataFrame* dfOut22 = new DataFrame();
+    std::shared_ptr<DataFrame> dfOut22 = std::make_shared<DataFrame>();
     dfOut22->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut22->addColumn(std::make_shared<Column<int>>("contagem", 1, 0));
 
-    //    DataFrame* dfOut3 = new DataFrame();
+    //    std::shared_ptr<DataFrame> dfOut3 = std::make_shared<DataFrame>();
     //    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     //    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
     //    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
@@ -850,7 +961,6 @@ void testeTransformer(int nThreads = 1){
     cout << "Output dataframe specification for t2.1:\n" << dfOut21->toString() << endl;
     cout << "Output dataframe specification for t2.2:\n" << dfOut22->toString() << endl;
     //    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
-
 
     //================================================//
     //             Definições de cada bloco           //
@@ -880,8 +990,8 @@ void testeTransformer(int nThreads = 1){
     //================================================//
     //                Construção do DAG               //
     //================================================//
-    e0->addNext(t11);
-    e0->addNext(t12);
+    e0->addNext(t11, {1});
+    e0->addNext(t12, {1});
 
 //    t11->addNext(t21);
 //    t11->addNext(t22);
@@ -957,9 +1067,12 @@ int main(int argc, char *argv[]) {
     // }
 
     auto start = std::chrono::high_resolution_clock::now();
-    testExtractorAndLoader();
+    //testExtractorAndLoader();
     //testeTransformer(3);
     // testeGeralEmap(1);
+
+    testeGeralEmap(4);
+
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
