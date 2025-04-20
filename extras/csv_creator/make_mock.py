@@ -10,7 +10,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 sizes = {
     "1k": 1_000,
-    #"100k": 100_000,
+    # "100k": 100_000,
     # "1M": 1_000_000
 }
 
@@ -25,7 +25,7 @@ for label, N in sizes.items():
     print(f"\n=== Gerando mock para {label} ({N} registros) ===")
     start_time = time.time()
 
-    # 1) Tabela 1: Transações (salvar em CSV)
+    # 1) Tabela 1: Transações CSV
     df_transactions = pd.DataFrame({
         "id_transacao":         [str(uuid.uuid4()) for _ in range(N)],
         "id_usuario_pagador":   [str(uuid.uuid4()) for _ in range(N)],
@@ -40,7 +40,7 @@ for label, N in sizes.items():
     df_transactions.to_csv(transactions_csv, index=False)
     print(f"Tabela 1 salva em: {transactions_csv}")
 
-    # 2) Tabela 2: Informações de cadastro (SQJ)
+    # 2) Tabela 2: Informações de cadastro (SQL)
     sql_path = os.path.join(output_dir, f"informacoes_cadastro_{label}.sql")
     with open(sql_path, "w") as f:
         f.write(
@@ -72,12 +72,12 @@ for uf in estados_uf:
     # coordenadas aleatórias
     lat = np.round(-34 + np.random.rand() * 39, 6)
     lon = np.round(-74 + np.random.rand() * 40, 6)
-    coord_str = f"({lat}, {lon})"
     media_mens = float(np.round(1_000 + np.random.rand() * 30_000, 2))
     num_fraude = int(np.random.randint(0, 100))
     region_list.append([
         uf,
-        coord_str,
+        lat,
+        lon,
         media_mens,
         num_fraude
     ])
@@ -86,7 +86,8 @@ df_regions = pd.DataFrame(
     region_list,
     columns=[
         "id_regiao",
-        "coordenadas_(lat,lon)",
+        "latitude",
+        "longitude",
         "media_transacional_mensal",
         "num_fraudes_ult_30d"
     ]
