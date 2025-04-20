@@ -152,8 +152,8 @@ void Extractor::addOutput(DataFrame* spec) {
 
 void Extractor::extract(int numThreads) {
     // Multithread
-    std::cout << numThreads << std::endl;
     if (numThreads > 1) {
+        std::cout << "Executando extrator com " << numThreads << " de consumidor" << std::endl;
         maxBufferSize = numThreads * numThreads;
     
         std::thread threadProducer(&Extractor::producer, this);
@@ -170,6 +170,7 @@ void Extractor::extract(int numThreads) {
     } 
     // Uma única thread
     else {  
+        std::cout << "Executando extrator sem paralelizar" << std::endl;
         // Percorre toda a base de dados
         while (true) {
             // Pega cada linha
@@ -198,7 +199,7 @@ void Extractor::producer() {
 
         // Adiciona o batch de linhas ao buffer
         buffer.push(rows);
-        std::cout << "Produtor" << buffer.size() << std::endl;
+
         // Verifica se terminou
         if (!repository->hasNext()) break;
 
@@ -211,7 +212,7 @@ void Extractor::producer() {
     // Fecha o arquivo e informa que encerrou a produção
     repository->close();
     endProduction = true;
-    std::cout << "acabemo d produzir" << std::endl;
+
     // Notifica aos consumidores que encerrou a produção
     cv.notify_all();
 };
@@ -231,7 +232,6 @@ void Extractor::consumer() {
         std::string rows = buffer.front();
         buffer.pop();
 
-        std::cout << "Consumidor" << buffer.size() << std::endl;
         // Converte para string as linhas do repostitório
         std::vector<StrRow> parsedRows = repository->parseBatch(rows);
 
@@ -243,7 +243,6 @@ void Extractor::consumer() {
             std::lock_guard<std::mutex> dfLock(dfMutex);
             for (StrRow parsedRow : parsedRows)
                 dfOutput->addRow(parsedRow);
-            std::cout << "df" << dfOutput->size() << std::endl;
         }
         cv.notify_all();
     }

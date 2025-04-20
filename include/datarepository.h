@@ -33,7 +33,7 @@ public:
 
 class FileRepository : public DataRepository {
 private:
-    size_t chunkSize = 1 << 27; // size of chunk in bytes
+    size_t chunkSize = 1 << 20; // size of chunk in bytes
     std::vector<char> buffer;
 
     std::string fileName;
