@@ -2,6 +2,7 @@
 #define TASK_H
 
 #include <vector>
+#include <array>
 #include <mutex>
 #include <utility>
 #include <memory>
@@ -98,7 +99,7 @@ private:
 
 class Loader : public Task {
 public:
-    Loader(): buffer(), maxBufferSize(), bufferMutex(), repoMutex(), cv(), endProduction(false) {};
+    Loader(): repoMutex() {};
     virtual ~Loader() = default;
     void createRepo(int numThreads);
     void updateRepo(int numThreads);
@@ -110,18 +111,12 @@ public:
     void execute(int numThreads = 1);
 private:
     FileRepository* repository;
-    std::shared_ptr<DataFrame> dfInput;
-    void getInput();
+    std::vector<DataFrameWithIndexes> inputs;
+    void getInput(int numThreads, int inputIndex = 0);
 
-    std::queue<StrRow> buffer;
-    size_t maxBufferSize;
-    std::mutex bufferMutex;
     std::mutex repoMutex;
-    std::condition_variable cv;
-    std::atomic<bool> endProduction;
 
-    void producer();
-    void consumer();
+    void load(std::vector<int> indexes);
 };
 
 #endif

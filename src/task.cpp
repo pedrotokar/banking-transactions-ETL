@@ -4,6 +4,7 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <array>
 #include <thread>
 #include <chrono>
 #include <atomic>
@@ -318,29 +319,30 @@ void Extractor::execute(int numThreads){
 // ###############################################################################################
 // Metodos da classe Loader
 
-void Loader::getInput() {
-    std::vector<DataFrameWithIndexes> inputs;
-    for (auto previousTask : previousTasks){
-        size_t dataFrameCounter = previousTask.first->getOutputs().size();
-        for (size_t i = 0; i < dataFrameCounter; i++){
-            auto dataFrame = previousTask.first->getOutputs().at(i);
-            //bool shouldSplit = previousTask.second.at(i);
-            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
-            std::vector<int> indexes;
-            for (size_t j = 0; j < dataFrame->size(); j++){
-                indexes.push_back(j);
-            }
-            auto pair = std::make_pair(indexes, dataFrame);
+void Loader::getInput(int numThreads, int inputIndex) {
+    std::shared_ptr<DataFrame> dfInput = previousTasks[0].first->getOutputs().at(inputIndex);
+
+    if (numThreads > 1) {
+        for (int i = 0; i < numThreads; i++){
+            std::vector<int> indexes = getRangeVector(dfInput->size(), numThreads, i);
+            auto pair = std::make_pair(indexes, dfInput);
             inputs.push_back(pair);
         }
+    } 
+    else {
+        //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
+        std::vector<int> indexes;
+        for (size_t j = 0; j < dfInput->size(); j++){
+            indexes.push_back(j);
+        }
+        auto pair = std::make_pair(indexes, dfInput);
+        inputs.push_back(pair);
     }
-    dfInput = inputs[0].second;
 }
 
 void Loader::createRepo(int numThreads) {   
     repository->clear();
-
-    StrRow header = dfInput->getHeader();
+    StrRow header = inputs[0].second->getHeader();
     repository->appendHeader(header);
 
     addRows(numThreads);
@@ -353,21 +355,20 @@ void Loader::updateRepo(int numThreads) {
 void Loader::addRows(int numThreads) {  
     // Multithread
     if (numThreads > 1) {
-        std::thread threadProducer(&Loader::producer, this);
-        maxBufferSize = numThreads * numThreads;
+        // maxBufferSize = numThreads ;//* numThreads;
 
-        std::vector<std::thread> consumers;
-        for (int i = 0; i < numThreads; ++i) {
-            consumers.emplace_back(&Loader::consumer, this);
+        std::vector<std::thread> threads;
+        for (int i = 0; i < numThreads; i++) {
+            threads.emplace_back(&Loader::load, this, inputs[i].first);
         }    
-
-        if (threadProducer.joinable()) threadProducer.join();
-        for (auto& threadConsumer : consumers) {
-            if (threadConsumer.joinable()) threadConsumer.join();
+        
+        for (auto& thread : threads) {
+            if (thread.joinable()) thread.join();
         }
     } 
     // Uma única thread
     else {  
+        std::shared_ptr<DataFrame> dfInput = inputs[0].second;
         // Percorre por todo DF de input
         for (size_t i = 0; i < dfInput->size(); i++) {
             // Pega cada linha do DF
@@ -379,63 +380,31 @@ void Loader::addRows(int numThreads) {
     repository->close();
 };
 
-void Loader::producer() {   
-    int i = 0;
-    int inputSize = dfInput->size();
-    while (true) {
-        // Verifica se terminou
-        if (i == inputSize) break;
-
-        // Pega cada linha do DF   
-        std::vector<std::string> row = dfInput->getRow(i);
-        i++;
-
-        // Aguarda caso o buffer esteja cheio
-        std::unique_lock<std::mutex> lock(bufferMutex);
-        cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
-        // Adiciona a linha ao buffer
-        buffer.push(row);
-
-        // Notifica aos consumidores
-        cv.notify_all();
+void Loader::load(std::vector<int> indexes) {  
+    std::shared_ptr<DataFrame> dfInput = inputs[0].second; 
+    std::vector<StrRow> rows;
+    for (size_t i = 0; i < dfInput->size(); i++) {
+        // Pega cada linha do DF
+        StrRow row = dfInput->getRow(i);
+        // Adiciona as linhas ao vetor de linhas
+        rows.push_back(row);
     };
-    // Assinala aaos consumidores que encerrou a produção
-    endProduction = true;
-    cv.notify_all();
+
+    {
+        std::lock_guard<std::mutex> lock(repoMutex);
+        for (StrRow row : rows) 
+            repository->appendRow(row);
+    }
 };
 
-void Loader::consumer() {   
-    while (true) {
-        std::unique_lock<std::mutex> lock(bufferMutex);
-
-        // Aguarda até que o buffer não esteja vazio enquanto há produção
-        cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
-
-        // Verifica se terminou o serviço
-        if (buffer.empty() && endProduction) break;
-
-        // Pega o primeira linha no buffer
-        StrRow row = buffer.front();
-        buffer.pop();
-
-        // Libera o mutex antes de acessar o repositório
-        lock.unlock(); 
-
-        // Adiciona o dado processado ao repositório
-        {
-            std::lock_guard<std::mutex> dfLock(repoMutex);
-            repository->appendRow(row);
-        }
-        cv.notify_all();
-    }
-}
-
 void Loader::execute(int numThreads){
+
+    numThreads += 2;
+    getInput(numThreads);
+
     auto start = std::chrono::high_resolution_clock::now();
 
-    getInput();
     createRepo(numThreads);
-    dfInput.reset();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
