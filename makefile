@@ -5,7 +5,7 @@ INCLUDE_DIR = include
 MODULES_DIRS = dataframe
 
 CXX = g++
-CXXFLAGS = -Wall -I $(INCLUDE_DIR)
+CXXFLAGS = -Wall -std=c++20 -I $(INCLUDE_DIR)
 
 SRC = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)))
 
