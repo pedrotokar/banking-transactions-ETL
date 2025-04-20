@@ -131,7 +131,6 @@ void Transformer::execute(int numThreads){
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
-    resetExecutedPreviousTasks();
 }
 
 //Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
@@ -307,9 +306,6 @@ void Extractor::execute(int numThreads){
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
-
-    //Limpeza pós execução
-    resetExecutedPreviousTasks();
 };
 
 // ###############################################################################################
@@ -442,5 +438,4 @@ void Loader::execute(int numThreads){
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
-    resetExecutedPreviousTasks();
 };

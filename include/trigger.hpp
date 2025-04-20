@@ -109,6 +109,7 @@ protected:
 
                 // Executa a task fora da região crítica.
                 currentTask->execute();
+                currentTask->resetExecutedPreviousTasks();
 
                 // Após a execução, adiciona as próximas tasks (se houver) na fila.
                 {
