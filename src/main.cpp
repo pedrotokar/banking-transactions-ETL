@@ -259,15 +259,15 @@ void teste3() {
     t1->addOutput(dfOut1);
     t2->addOutput(dfOut2);
 
-    e0->addNext(t0);
+    e0->addNext(t0, {1});
     cout << "Tamanho do nextTasks do e0: " << e0->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t0: " << t0->getPreviousTasks().size() << endl;
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
+    t0->addNext(t1, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
+    t1->addNext(t2, {1});
 }
 
 std::shared_ptr<DataFrame> buildDFtestExtractorAndLoader() {
@@ -299,7 +299,7 @@ void testExtractorAndLoader(int nThreads = 1) {
 
     auto l0 = std::make_shared<Loader>();
 
-    e0->addNext(l0);
+    e0->addNext(l0, {1});
 
     FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
     l0->addRepo(outputRepository);
@@ -397,10 +397,10 @@ void testeTrigger(){
 
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
+    t0->addNext(t1, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
+    t1->addNext(t2, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     
@@ -457,11 +457,11 @@ void testeTrigger2(){
 
     //T0 é um mock - representa um tratador que já foi completo anteriormente
     //Após adicionar as especificações de output, o usuário deve usar addNext pra construir o grafo. Talvez eu troque pro addPrevious, mas a ideia segue sendo a mesma.s
-    t0->addNext(t1);
+    t0->addNext(t1, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
-    t1->addNext(t2);
-    t1->addNext(t3);
+    t1->addNext(t2, {1});
+    t1->addNext(t3, {1});
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     cout << "Tamanho do previousTasks do t3: " << t3->getPreviousTasks().size() << endl;
@@ -690,7 +690,10 @@ public:
 };
 
 class MeanTransformer : public Transformer {
+private:
+    std::mutex meanMutex;
 public:
+    MeanTransformer(): meanMutex() {};
     void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
                    const std::vector<DataFrameWithIndexes>& inputs) override
     {
@@ -717,6 +720,7 @@ public:
 
         auto outDf = outputs.at(0);
         for (auto index : inputs[0].first) {
+
             auto categoria = dfSum->getElement<std::string>(index, 0);
             auto soma = dfSum->getElement<int>(index, 1);
             int equivalentLine = -1;
@@ -728,8 +732,12 @@ public:
             }
             auto contagem = dfCount->getElement<int>(equivalentLine, 1);
             double mean = soma/contagem;
-            auto row = std::vector<std::any>{categoria, soma, contagem, mean};
-            outDf->addRow(row);
+            {
+                std::unique_lock<std::mutex> lock(meanMutex);
+                auto row = std::vector<std::any>{categoria, soma, contagem, mean};
+                outDf->addRow(row);
+            }
+
         }
 
         std::cout << "[MeanTransformer] Concluído: medias foram computadas." << std::endl;
@@ -831,22 +839,33 @@ void testeGeralEmap(int nThreads = 1){
     auto l2 = std::make_shared<Loader>();
     l2->addRepo(outputRepositorySalary);
 
+    FileRepository* outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
+    auto l3 = std::make_shared<Loader>();
+    l3->addRepo(outputRepositoryMean);
+
     //================================================//
     //                Construção do DAG               //
     //================================================//
-    e0->addNext(t11);
-    e0->addNext(t12);
 
-    t11->addNext(t21);
-    t11->addNext(t22);
-    t11->addNext(t23);
-    t11->addNext(t24);
-    t21->addNext(t3);
-    t22->addNext(t3);
+    //essas arrays representam quais dfs do output do tratador devem ter os índices separados para as threads do próximo bloco.
+    //essencialmente só muda a entrada do método transform, se ele vai passar pra todas as threads o índice completo ou ele dividido.
+    //o tamanho de entrada da array é equivalente a quantidade de dfs de output do bloco. Se tirarmos isso de ser vários, seria só um bool
+    e0->addNext(t11, {1});
+    e0->addNext(t12, {1});
 
-    t12->addNext(l0);
-    t23->addNext(l2);
-    t24->addNext(l1);
+    t11->addNext(t21, {1});
+    t11->addNext(t22, {1});
+    t11->addNext(t23, {1});
+    t11->addNext(t24, {1});
+    //Cada thread vai receber a array de índices completa do t22, mas dividida do t21
+    //Preciso pensar em um exemplo mais legal do que esse...
+    t21->addNext(t3, {1});
+    t22->addNext(t3, {0});
+
+    t12->addNext(l0, {1});
+    t23->addNext(l2, {1});
+    t24->addNext(l1, {1});
+    t3->addNext(l3, {1});
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
@@ -865,6 +884,7 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.2 internal df size after running: " << t22->getOutputs().at(0)->size() << endl;
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
+    cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
 
     //Temporário até arrumar o file repo
     inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
@@ -878,6 +898,10 @@ void testeGeralEmap(int nThreads = 1){
 
     outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
     l2->addRepo(outputRepositorySalary);
+
+    outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
+    l3->addRepo(outputRepositoryMean);
+
     std::cout << "\nStartando trigger...\n";
     trigger.start(nThreads);
     std::cout << "\nTrigger finalizado.\n";
@@ -889,6 +913,7 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.2 internal df size after running: " << t22->getOutputs().at(0)->size() << endl;
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
+    cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
     while (true){
         int i = 0;
     }
@@ -965,8 +990,8 @@ void testeTransformer(int nThreads = 1){
     //================================================//
     //                Construção do DAG               //
     //================================================//
-    e0->addNext(t11);
-    e0->addNext(t12);
+    e0->addNext(t11, {1});
+    e0->addNext(t12, {1});
 
 //    t11->addNext(t21);
 //    t11->addNext(t22);

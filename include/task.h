@@ -19,7 +19,7 @@ class Task : public std::enable_shared_from_this<Task>{
 public:
     virtual ~Task() = default;
     //Interfaces para adicionar saídas e relacionamentos
-    void addNext(std::shared_ptr<Task> nextTask);
+    void addNext(std::shared_ptr<Task> nextTask, std::vector<bool> splitDFs);
     void addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs);
     void addOutput(std::shared_ptr<DataFrame> outputDF);
     //Getters das saídas e relacionamentos

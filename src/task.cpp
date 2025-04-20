@@ -2,6 +2,7 @@
 #include "dataframe.h"
 #include "datarepository.h"
 #include <memory>
+#include <stdexcept>
 #include <vector>
 #include <thread>
 #include <chrono>
@@ -30,20 +31,17 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
 // Métodos da classe Task
 
 //Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
-void Task::addNext(std::shared_ptr<Task> nextTask) {
+void Task::addNext(std::shared_ptr<Task> nextTask, std::vector<bool> splitDFs) {
+    nextTask->addPrevious(shared_from_this(), splitDFs);
+
     nextTasks.push_back(nextTask);
     tasksConsumingOutput = nextTasks.size();
-
-    std::vector<bool> splitDFs;
-    for(size_t i = 0; i < outputDFs.size(); i++){
-        splitDFs.push_back(true);
-    }
-    nextTask->addPrevious(shared_from_this(), splitDFs);
 }
+
 //Todas as tasks precisam saber suas anteriores e próximas, por isso esse método também é necessário
 void Task::addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs){
     if(previousTask->getOutputs().size() != splitDFs.size()){
-        throw "The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs";
+        throw std::runtime_error("The number of elements in the vector splitDFs doesnt match the number of dataframes that the task outputs.");
     }
     auto pair = make_pair(previousTask, splitDFs);
     previousTasks.push_back(pair);
@@ -145,8 +143,8 @@ void Transformer::executeWithThreading(int numThreads){
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){ //Roda cada df que pode sair da task anterior. Se só passar a ser um fixo por task, esse for iria de base
             auto dataFrame = previousTask.first->getOutputs().at(i);
-
             bool shouldSplit = previousTask.second.at(i);
+
             if(shouldSplit){
                 for (int tIndex = 0; tIndex < numThreads; tIndex++){
                     std::vector<int> indexes = getRangeVector(dataFrame->size(), numThreads, tIndex);
