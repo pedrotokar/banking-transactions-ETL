@@ -57,7 +57,12 @@ protected:
             // Adiciona as próximas tarefas à fila
             const auto& nextTasks = task->getNextTasks();
             for (const auto& nextTask : nextTasks) {
-                tasksQueue.push(nextTask);
+                nextTask->incrementExecutedPreviousTasks();
+
+                // Se todas as tarefas anteriores foram executadas, adiciona a próxima tarefa à fila
+                if(nextTask->checkPreviousTasks()) {
+                    tasksQueue.push(nextTask);  
+                }
             }
         }
         std::cout << "Pipeline concluída.\n";
@@ -109,8 +114,13 @@ protected:
                 {
                     std::lock_guard<std::mutex> lock(queueMutex);
                     for (const auto& nextTask : currentTask->getNextTasks()) {
-                        tasksQueue.push(nextTask);
-                        pendingTasks++;
+                        nextTask->incrementExecutedPreviousTasks();
+                        
+                        // Se todas as tasks anteriores foram executadas, adiciona a próxima task na fila.
+                        if(nextTask->checkPreviousTasks()) {
+                            tasksQueue.push(nextTask);
+                            pendingTasks++;
+                        }
                     }
                 }
 

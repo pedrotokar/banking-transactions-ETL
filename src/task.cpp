@@ -25,6 +25,10 @@ std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex)
     return indexes;
 }
 
+// ###############################################################################################
+// ###############################################################################################
+// Métodos da classe Task
+
 //Definições das interfaces para adicionar saídas e relacionamentos - comum a todas as tasks
 void Task::addNext(std::shared_ptr<Task> nextTask) {
     nextTasks.push_back(nextTask);
@@ -49,6 +53,14 @@ void Task::addOutput(std::shared_ptr<DataFrame> modelDF) {
     outputDFs.push_back(modelDF->emptyCopy());
 }
 
+void Task::incrementExecutedPreviousTasks(){
+    cntExecutedPreviousTasks++;
+}
+
+void Task::resetExecutedPreviousTasks(){
+    cntExecutedPreviousTasks = 0;
+}
+
 //Getters
 const std::vector<std::shared_ptr<Task>>& Task::getNextTasks(){
     return nextTasks;
@@ -61,6 +73,15 @@ const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& Task::ge
 const std::vector<std::shared_ptr<DataFrame>>& Task::getOutputs(){
     return outputDFs;
 }
+
+const bool Task::checkPreviousTasks() const {
+    return cntExecutedPreviousTasks == previousTasks.size();
+}
+
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe transformer
 
 //Coloca a lógica específica do transformador para limpar seus DFs de saída
 void Transformer::decreaseConsumingCounter(){
@@ -77,7 +98,7 @@ void Transformer::decreaseConsumingCounter(){
 
 //Sobrescreve o método abstrato execute com o que a transformers precisam fazer
 void Transformer::execute(int numThreads){
-    numThreads += 2;
+    numThreads += 1;
     if(numThreads == 1){
         std::vector<DataFrameWithIndexes> inputs;
         for (auto previousTask : previousTasks){
@@ -105,9 +126,12 @@ void Transformer::execute(int numThreads){
     else{
         executeWithThreading(numThreads);
     }
+
+    //Limpeza pós execução
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
+    resetExecutedPreviousTasks();
 }
 
 //Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
@@ -147,7 +171,6 @@ void Transformer::executeWithThreading(int numThreads){
     std::vector<std::thread> threadList;
     threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
-        // std::cout << "Aqui eu enfilero a thread " << tIndex << std::endl;
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
         threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
     }
@@ -162,6 +185,10 @@ void Transformer::executeWithThreading(int numThreads){
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
 }
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Extractor
 
 void Extractor::addOutput(std::shared_ptr<DataFrame> modelDF) {
     outputDFs.push_back(modelDF->emptyCopy());
@@ -280,7 +307,14 @@ void Extractor::execute(int numThreads){
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+
+    //Limpeza pós execução
+    resetExecutedPreviousTasks();
 };
+
+// ###############################################################################################
+// ###############################################################################################
+// Metodos da classe Loader
 
 void Loader::getInput() {
     std::vector<DataFrameWithIndexes> inputs;
@@ -403,7 +437,10 @@ void Loader::execute(int numThreads){
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
+
+    //Limpeza pós execução
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
+    resetExecutedPreviousTasks();
 };

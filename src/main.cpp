@@ -168,7 +168,7 @@ void teste2() {
     nameColumn->addValue("Bruno");
     nameColumn->addValue("Carla");
 
-        auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
+    auto salaryColumn = std::make_shared<Column<double>>("salary", 2, -1);
     salaryColumn->addValue(5000.42);
     salaryColumn->addValue(7500.42);
     salaryColumn->addValue(9000.42);
@@ -232,16 +232,9 @@ std::shared_ptr<DataFrame> buildDFteste3() {
 
 void teste3() {
     std::shared_ptr<DataFrame> df = buildDFteste3();
-
-    FileRepository* repository = new FileRepository("data/teste_1.csv", ",", true);
+    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
     auto e0 = std::make_shared<Extractor>();
-
-    e0->addOutput(df);
-    e0->addRepo(repository);
-
-    e0->execute();
-
     std::shared_ptr<DataFrame> dfOut0 = buildDFteste3();
 
     std::shared_ptr<DataFrame> dfOut1 = buildDFteste3();
@@ -260,7 +253,7 @@ void teste3() {
     auto t0 = std::make_shared<DuplicateDFTransformer>();
     auto t1 = std::make_shared<DuplicateDFTransformer>();
     auto t2 = std::make_shared<SumAgeTransformerTestInterface>();
-    
+
     //Antes de fazer as conexões tenho que add output em todos. O usuário que faz isso.
     t0->addOutput(dfOut0);
     t1->addOutput(dfOut1);
@@ -275,27 +268,51 @@ void teste3() {
     cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
     cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
     t1->addNext(t2);
+}
+
+std::shared_ptr<DataFrame> buildDFtestExtractorAndLoader() {
+    //Dataframe inicial para testes
+    std::shared_ptr<DataFrame> df = std::make_shared<DataFrame>();
+
+    auto posicaoColumn = std::make_shared<Column<std::string>>("posicao", 0, "");
+    auto idadeColumn = std::make_shared<Column<int>>("idade", 1, 0);
+    auto anoColumn = std::make_shared<Column<int>>("ano", 2, -100);
+    auto salarioColumn = std::make_shared<Column<double>>("salario", 3, -1);
+
+    df->addColumn(posicaoColumn);
+    df->addColumn(idadeColumn);
+    df->addColumn(anoColumn);
+    df->addColumn(salarioColumn);
+
+    return df;
+}
+
+void testExtractorAndLoader(int nThreads = 1) {
+    std::shared_ptr<DataFrame> df = buildDFtestExtractorAndLoader();
+
+    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
+
+    auto e0 = std::make_shared<Extractor>();
+
+    e0->addOutput(df);
+    e0->addRepo(repository);
 
     auto l0 = std::make_shared<Loader>();
-    t1->addNext(l0);
 
-    cout << "Tamanho do nextTasks do t1: " << t1->getNextTasks().size() << endl;
-    cout << "Tamanho do previousTasks do t2: " << t2->getPreviousTasks().size() << endl;
+    e0->addNext(l0);
 
-    //Com isso pronto, em teoria o orquestrador, depois de navegar na pipeline e etc, só teria que chamar esse execute pra um tratador cujos anteriores estivessem completos já.
-    //Esse inputs é inutil agora, só não mudei a assinatura da função ainda. No futuro deve ser trocado por algo do tipo "threadCount" ou coisa assim
-    t0->execute();
-    cout << "Output dataframe t0 after operation:\n" << dfOut0->toString() << endl;
-    
-    t1->execute();
-    cout << "Output dataframe t1 after operation:\n" << dfOut1->toString() << endl;
-    
-    // FileRepository* new_repository = new FileRepository("data/result_1_teste_3.csv", ",", true);
-    l0->addRepo(repository);
-    l0->execute();
+    FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
+    l0->addRepo(outputRepository);
 
-    t2->execute();
-    cout << "Output dataframe t2 after operation:\n" << dfOut2->toString() << endl;
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
+
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
+    std::cout << "\nStartando trigger...\n";
+    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n" << std::endl;
 }
 
 void teste4() {
@@ -553,7 +570,7 @@ public:
                         break;
                     }
                 }
-                if(not alreadyPlaced){
+                if(!alreadyPlaced){
                     auto row = std::vector<std::any>{chave, valor};
                     outDf->addRow(row);
                 }
@@ -662,7 +679,7 @@ public:
                         break;
                     }
                 }
-                if(not alreadyPlaced){
+                if(!alreadyPlaced){
                     auto row = std::vector<std::any>{chave, valor};
                     outDf->addRow(row);
                 }
@@ -757,18 +774,18 @@ void testeGeralEmap(int nThreads = 1){
     dfOut24->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
     dfOut24->addColumn(std::make_shared<Column<int>>("soma idade", 1, 0));
 
-//    std::shared_ptr<DataFrame> dfOut3 = std::make_shared<DataFrame>();
-//    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
-//    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
-//    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
-//    dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
+    std::shared_ptr<DataFrame> dfOut3 = std::make_shared<DataFrame>();
+    dfOut3->addColumn(std::make_shared<Column<std::string>>("posicao", 0, ""));
+    dfOut3->addColumn(std::make_shared<Column<int>>("soma idade", 1, -1));
+    dfOut3->addColumn(std::make_shared<Column<int>>("contagem", 2, 0));
+    dfOut3->addColumn(std::make_shared<Column<double>>("media", 3, 0));
 
     cout << "Output dataframe specification for e:\n" << dfOutE->toString() << endl;
     cout << "Output dataframe specification for t1.1 and t1.2:\n" << dfOut11->toString() << endl;
     cout << "Output dataframe specification for t2.1 and t2.4:\n" << dfOut21->toString() << endl;
     cout << "Output dataframe specification for t2.2:\n" << dfOut22->toString() << endl;
     cout << "Output dataframe specification for t2.3:\n" << dfOut23->toString() << endl;
-//    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
+    cout << "Output dataframe specification for t3:\n" << dfOut3->toString() << endl;
 
 
     //================================================//
@@ -798,16 +815,9 @@ void testeGeralEmap(int nThreads = 1){
 
     auto t24 = std::make_shared<AgeSumTransformer>();
     t24->addOutput(dfOut24);
-    cout << dfOutE.use_count() << endl;
-    cout << dfOut11.use_count() << endl;
-    cout << dfOut12.use_count() << endl;
-    cout << dfOut21.use_count() << endl;
-    cout << dfOut22.use_count() << endl;
-    cout << dfOut23.use_count() << endl;
-    cout << dfOut24.use_count() << endl;
 
-//    auto t3 = std::make_shared<MeanTransformer>();
-//    t3->addOutput(dfOut3);
+    auto t3 = std::make_shared<MeanTransformer>();
+    t3->addOutput(dfOut3);
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
     auto l0 = std::make_shared<Loader>();
@@ -831,8 +841,8 @@ void testeGeralEmap(int nThreads = 1){
     t11->addNext(t22);
     t11->addNext(t23);
     t11->addNext(t24);
-//    t21->addNext(t3);
-//    t22->addNext(t3);
+    t21->addNext(t3);
+    t22->addNext(t3);
 
     t12->addNext(l0);
     t23->addNext(l2);
@@ -879,7 +889,6 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.2 internal df size after running: " << t22->getOutputs().at(0)->size() << endl;
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
-
     while (true){
         int i = 0;
     }
@@ -1027,15 +1036,17 @@ void testeBatch() {
 }
 
 int main(int argc, char *argv[]) {
-    int nThreads = 1;
-    if (argc > 1) {
-        nThreads = std::stoi(argv[1]);
-    }
+    // int nThreads = 1;
+    // if (argc > 1) {
+    //     nThreads = std::stoi(argv[1]);
+    // }
 
     auto start = std::chrono::high_resolution_clock::now();
-
+    // testExtractorAndLoader();
     //testeTransformer(3);
-    testeGeralEmap(5);
+
+    testeGeralEmap(4);
+
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
