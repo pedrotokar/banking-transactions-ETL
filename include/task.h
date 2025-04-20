@@ -26,16 +26,23 @@ public:
     const std::vector<std::shared_ptr<Task>>& getNextTasks();
     const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& getPreviousTasks();
     const std::vector<std::shared_ptr<DataFrame>>& getOutputs();
-    //Função comum para todos os blocos do etl que deverá executar eles.
-    virtual void execute(int numThreads = 1) {};
-
-    //Função para gerenciar o uso dos dataframes de saída da task
-    virtual void decreaseConsumingCounter() {};
-
     //Funções para gerenciar as pendencias antes de executar a task
     void incrementExecutedPreviousTasks();
-    void resetExecutedPreviousTasks();
     const bool checkPreviousTasks() const;
+
+    //----------Métodos abstratos---------//
+
+    //método abstrato comum para todos os blocos do etl que deverá executar eles.
+    //o primeiro deve simplesmente executar sem mexer em nenhuma interface de threading
+    virtual void executeMonoThread() {};
+    //e o segundo deverá enfileirar threads para trabalhar e retornar elas
+    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) = 0;
+
+    //método abstrato para gerenciar o uso dos dataframes de saída da task
+    virtual void decreaseConsumingCounter() {};
+
+    //método abstrato que faz devidas limpezas após o final do funcionamento do bloco
+    virtual void finishExecution() {};
 
 protected:
     //Vetores com as saídas e relacionamentos
@@ -51,18 +58,24 @@ protected:
 
 class Transformer : public Task {
 public:
-    Transformer():consumingCounterMutex() {};
+    Transformer(): consumingCounterMutex() {};
     virtual ~Transformer() = default;
-    //Função virtual que qualquer transformer deve implementar
-    virtual void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
-                           const std::vector<DataFrameWithIndexes>& inputs) = 0;
 
-    //Implementação específica do transformer para o execute
-    void execute(int numThreads = 1) override;
+    //Função virtual que qualquer transformer deve implementar - no caso, o usuário
+    virtual void transform(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                           const std::vector<DataFrameWithIndexes>& inputs) {};
+
+    //Implementação específica do transformer para o executes
+    void executeMonoThread() override;
+    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+
+    //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
+    void finishExecution() override;
 
 private:
-    void executeWithThreading(int numThreads);
+    //Métodos privados para facilitar o gerenciamento do que fazer
+    std::vector<std::thread> executeWithThreading(int numThreads);
 
 protected:
     std::mutex consumingCounterMutex;
@@ -73,13 +86,18 @@ class Extractor : public Task {
 public:
     Extractor(): buffer(), bufferMutex(), dfMutex(), consumingCounterMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
-    void extract(int numThreads);
+
     void addOutput(std::shared_ptr<DataFrame> outputDF);
     void addRepo(FileRepository* repo){ repository = repo;};
 
     //Implementação específica do extractor para o execute
-    void execute(int numThreads = 1) override;
+    void executeMonoThread() override;
+    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+
+    //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
+    void finishExecution() override;
+
 private:
     FileRepository* repository;
     std::shared_ptr<DataFrame> dfOutput;
@@ -100,14 +118,19 @@ class Loader : public Task {
 public:
     Loader(): buffer(), maxBufferSize(), bufferMutex(), repoMutex(), cv(), endProduction(false) {};
     virtual ~Loader() = default;
-    void createRepo(int numThreads);
+    void createRepo();
     void updateRepo(int numThreads);
     void addRows(int numThreads);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
     //Implementação específica do loader para o execute
-    void execute(int numThreads = 1);
+    void executeMonoThread() override;
+    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+
+    //Implementação específica para os métodos de pós execução e contagem
+    void finishExecution() override;
+
 private:
     FileRepository* repository;
     std::shared_ptr<DataFrame> dfInput;

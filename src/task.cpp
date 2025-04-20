@@ -8,8 +8,10 @@
 #include <chrono>
 #include <atomic>
 #include <condition_variable>
+#include <iostream>
 
 //TODO: melhorar isso daqui
+//Função auxiliar para não poluir a execute do transformer
 std::vector<int> getRangeVector(size_t size, size_t numDivisions, size_t dIndex){
     std::vector<int> indexes;
     int blockSize = size/numDivisions;
@@ -55,10 +57,6 @@ void Task::incrementExecutedPreviousTasks(){
     cntExecutedPreviousTasks++;
 }
 
-void Task::resetExecutedPreviousTasks(){
-    cntExecutedPreviousTasks = 0;
-}
-
 //Getters
 const std::vector<std::shared_ptr<Task>>& Task::getNextTasks(){
     return nextTasks;
@@ -94,50 +92,48 @@ void Transformer::decreaseConsumingCounter(){
     }
 }
 
-//Sobrescreve o método abstrato execute com o que a transformers precisam fazer
-void Transformer::execute(int numThreads){
+std::vector<std::thread> Transformer::executeMultiThread(int numThreads){
+    std::vector<std::thread> runningThreads;
     if(numThreads == 1){
-        std::vector<DataFrameWithIndexes> inputs;
-        for (auto previousTask : previousTasks){
-            size_t dataFrameCounter = previousTask.first->getOutputs().size();
-            for (size_t i = 0; i < dataFrameCounter; i++){
-                auto dataFrame = previousTask.first->getOutputs().at(i);
-                //Primeiro constrói o vetor index para cada dataframe e depois faz e dá push no pair.
-                //Como tem só uma thread, só pega o indice todo do dataframe
-                std::vector<int> indexes;
-                for (size_t j = 0; j < dataFrame->size(); j++){
-                    indexes.push_back(j);
-                }
-                auto pair = std::make_pair(indexes, dataFrame);
-                inputs.push_back(pair);
-            }
-        }
-        auto start = std::chrono::high_resolution_clock::now();
-        // std::cout << "calling transform" << std::endl;
-        transform(outputDFs, inputs);
-        // std::cout << "called transform" << std::endl;
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed = end - start;
-        std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+        runningThreads.emplace_back(&Transformer::executeMonoThread, this);
     }
     else{
-        executeWithThreading(numThreads);
+        runningThreads = executeWithThreading(numThreads);
     }
-
-    //Limpeza pós execução
-    for (auto previousTask: previousTasks){
-        previousTask.first->decreaseConsumingCounter();
-    }
+    return runningThreads;
 }
 
-//Versão multithread do execute - divide corretamente os índices para cada thread saber em que parte do DF deve operar sobre.
-void Transformer::executeWithThreading(int numThreads){
+void Transformer::executeMonoThread(){
+
+    std::vector<DataFrameWithIndexes> inputs;//A entrada da função transform
+
+    //Constrói essa entrada de acordo com os dataframes anteriores
+    for (auto previousTask : previousTasks){
+        size_t dataFrameCounter = previousTask.first->getOutputs().size();
+        for (size_t i = 0; i < dataFrameCounter; i++){
+            auto dataFrame = previousTask.first->getOutputs().at(i);
+            //Primeiro constrói o vetor index para cada dataframe e depois faz e dá push no pair.
+            //Como tem só uma thread, só pega o indice todo do dataframe
+            std::vector<int> indexes;
+            for (size_t j = 0; j < dataFrame->size(); j++){
+                indexes.push_back(j);
+            }
+            auto pair = std::make_pair(indexes, dataFrame);
+            inputs.push_back(pair);
+        }
+    }
+    transform(outputDFs, inputs);
+}
+
+//Função separada da executeMultiThread para não poluir ela
+std::vector<std::thread> Transformer::executeWithThreading(int numThreads){
     //Um vector contendo as entradas que serão passadas para cada thread
     std::vector<std::vector<DataFrameWithIndexes>> threadInputs;
     for (int i = 0; i < numThreads; i++){
         std::vector<DataFrameWithIndexes> inputs;
         threadInputs.push_back(inputs); //Input para cada thread. Começa vazio
     }
+    //Constrói  as entradas de acordo com os dataframes anteriores
     for (auto previousTask : previousTasks){ //Roda as tasks anteriores
         size_t dataFrameCounter = previousTask.first->getOutputs().size();
         for (size_t i = 0; i < dataFrameCounter; i++){ //Roda cada df que pode sair da task anterior. Se só passar a ser um fixo por task, esse for iria de base
@@ -162,24 +158,21 @@ void Transformer::executeWithThreading(int numThreads){
             }
         }
     }
-    auto start = std::chrono::high_resolution_clock::now();
-
     std::vector<std::thread> threadList;
     threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
         threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
     }
-    //Espera threads terminarem
-    for(auto& workingThread: threadList){
-        if(workingThread.joinable()){
-            workingThread.join();
-        }
-    }
+    return threadList;
+}
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "--- Time elapsed in transformer : " << elapsed.count() << "ms" << std::endl;
+void Transformer::finishExecution(){
+    //Limpeza pós execução
+    for (auto previousTask: previousTasks){
+        previousTask.first->decreaseConsumingCounter();
+    }
+    cntExecutedPreviousTasks = 0;
 }
 
 // ###############################################################################################
@@ -204,43 +197,39 @@ void Extractor::decreaseConsumingCounter(){
     }
 }
 
-void Extractor::extract(int numThreads) {
-    // Multithread
-    if (numThreads > 1) {
-        std::cout << "Executando extrator com " << numThreads << " de consumidor" << std::endl;
-        maxBufferSize = numThreads * numThreads;
-    
-        std::thread threadProducer(&Extractor::producer, this);
+void Extractor::executeMonoThread(){
+    std::cout << "Executando extrator sem paralelizar" << std::endl;
+    // Percorre toda a base de dados
+    while (true) {
+        // Pega cada linha
+        DataRow row = repository->getRow();
 
-        std::vector<std::thread> consumers;
-        for (int i = 0; i < numThreads; ++i) {
-            consumers.emplace_back(&Extractor::consumer, this);
-        }    
+        // Verifica se já percorreu a base completamente
+        if (!repository->hasNext()) break;
 
-        if (threadProducer.joinable()) threadProducer.join();
-        for (auto& threadConsumer : consumers) {
-            if (threadConsumer.joinable()) threadConsumer.join();
-        }
-    } 
-    // Uma única thread
-    else {  
-        std::cout << "Executando extrator sem paralelizar" << std::endl;
-        // Percorre toda a base de dados
-        while (true) {
-            // Pega cada linha
-            DataRow row = repository->getRow();
-
-            // Verifica se já percorreu a base completamente
-            if (!repository->hasNext()) break;
-            
-            // Processa cada linha
-            StrRow parsedRow = repository->parseRow(row);
-            // Adicina a linha processada no DF de output
-            dfOutput->addRow(parsedRow);
-        };
+        // Processa cada linha
+        StrRow parsedRow = repository->parseRow(row);
+        // Adicina a linha processada no DF de output
+        dfOutput->addRow(parsedRow);
     };
-    repository->close();
-};
+}
+
+std::vector<std::thread> Extractor::executeMultiThread(int numThreads){
+    std::vector<std::thread> runningThreads;
+    if(numThreads == 1 || numThreads == 2){
+        runningThreads.emplace_back(&Extractor::executeMonoThread, this);
+    }
+    else{
+        std::cout << "Executando extrator com " << numThreads - 1<< " de consumidor" << std::endl;
+        maxBufferSize = numThreads * numThreads;
+
+        runningThreads.emplace_back(&Extractor::producer, this);
+        for (int i = 0; i < numThreads - 1; ++i) {
+            runningThreads.emplace_back(&Extractor::consumer, this);
+        }
+    }
+    return runningThreads;
+}
 
 void Extractor::producer() {
     while (true) {
@@ -270,7 +259,6 @@ void Extractor::producer() {
     // Notifica aos consumidores que encerrou a produção
     cv.notify_all();
 };
-
 
 void Extractor::consumer() {
     while (true) {
@@ -302,17 +290,11 @@ void Extractor::consumer() {
     }
 }
 
-
-void Extractor::execute(int numThreads){
-    numThreads++;
-    auto start = std::chrono::high_resolution_clock::now();
-    extract(numThreads);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
-
+void Extractor::finishExecution(){
+    repository->close();
     endProduction = false;
-};
+    cntExecutedPreviousTasks = 0;
+}
 
 // ###############################################################################################
 // ###############################################################################################
@@ -337,46 +319,44 @@ void Loader::getInput() {
     dfInput = inputs[0].second;
 }
 
-void Loader::createRepo(int numThreads) {   
+void Loader::executeMonoThread(){
+    getInput();
+    createRepo();
+    for (size_t i = 0; i < dfInput->size(); i++) {
+        // Pega cada linha do DF
+        std::vector<std::string> row = dfInput->getRow(i);
+        // Adiciona a linha ao repositório
+        repository->appendRow(row);
+    }
+}
+
+std::vector<std::thread> Loader::executeMultiThread(int numThreads){
+    std::vector<std::thread> runningThreads;
+    if(numThreads == 1 || numThreads == 2){
+        runningThreads.emplace_back(&Loader::executeMonoThread, this);
+    }
+    else {
+        getInput();
+        createRepo();
+        maxBufferSize = numThreads * numThreads;
+        runningThreads.emplace_back(&Loader::producer, this);
+
+        for (int i = 0; i < numThreads - 1; ++i) {
+            runningThreads.emplace_back(&Loader::consumer, this);
+        }
+    }
+    return runningThreads;
+}
+
+void Loader::createRepo() {
     repository->clear();
 
     StrRow header = dfInput->getHeader();
     repository->appendHeader(header);
-
-    addRows(numThreads);
 };
 
 void Loader::updateRepo(int numThreads) {   
     return;    
-};
-
-void Loader::addRows(int numThreads) {  
-    // Multithread
-    if (numThreads > 1) {
-        std::thread threadProducer(&Loader::producer, this);
-        maxBufferSize = numThreads * numThreads;
-
-        std::vector<std::thread> consumers;
-        for (int i = 0; i < numThreads; ++i) {
-            consumers.emplace_back(&Loader::consumer, this);
-        }    
-
-        if (threadProducer.joinable()) threadProducer.join();
-        for (auto& threadConsumer : consumers) {
-            if (threadConsumer.joinable()) threadConsumer.join();
-        }
-    } 
-    // Uma única thread
-    else {  
-        // Percorre por todo DF de input
-        for (size_t i = 0; i < dfInput->size(); i++) {
-            // Pega cada linha do DF
-            std::vector<std::string> row = dfInput->getRow(i);
-            // Adiciona a linha ao repositório
-            repository->appendRow(row);
-        }
-    }
-    repository->close();
 };
 
 void Loader::producer() {   
@@ -430,19 +410,12 @@ void Loader::consumer() {
     }
 }
 
-void Loader::execute(int numThreads){
-    auto start = std::chrono::high_resolution_clock::now();
-
-    getInput();
-    createRepo(numThreads);
+void Loader::finishExecution() {
     dfInput.reset();
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "--- Time elapsed in loader : " << elapsed.count() << "ms" << std::endl;
-
-    //Limpeza pós execução
+    endProduction = false;
+    repository->close();
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
-};
+    cntExecutedPreviousTasks = 0;
+}
