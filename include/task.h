@@ -78,7 +78,7 @@ private:
 
 class Loader : public Task {
 public:
-    Loader(): bufferMutex(), repoMutex(), cv(), endProduction(false) {};
+    Loader(): buffer(), maxBufferSize(), bufferMutex(), repoMutex(), cv(), endProduction(false) {};
     virtual ~Loader() = default;
     void createRepo(int numThreads);
     void updateRepo(int numThreads);
@@ -94,6 +94,7 @@ private:
     void getInput();
 
     std::queue<StrRow> buffer;
+    size_t maxBufferSize;
     std::mutex bufferMutex;
     std::mutex repoMutex;
     std::condition_variable cv;

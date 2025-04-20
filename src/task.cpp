@@ -294,6 +294,7 @@ void Loader::addRows(int numThreads) {
     // Multithread
     if (numThreads > 1) {
         std::thread threadProducer(&Loader::producer, this);
+        maxBufferSize = numThreads * numThreads;
 
         std::vector<std::thread> consumers;
         for (int i = 0; i < numThreads; ++i) {
@@ -321,7 +322,6 @@ void Loader::addRows(int numThreads) {
 void Loader::producer() {   
     int i = 0;
     int inputSize = dfInput->size();
-    auto maxBufferSize = buffer.size() + 10000;
     while (true) {
         // Verifica se terminou
         if (i == inputSize) break;
@@ -330,15 +330,16 @@ void Loader::producer() {
         std::vector<std::string> row = dfInput->getRow(i);
         i++;
 
-        // Adiciona a linha ao buffer
-        
+        // Aguarda caso o buffer esteja cheio
         std::unique_lock<std::mutex> lock(bufferMutex);
-        cv.wait(lock, [this, &maxBufferSize] { return buffer.size() < maxBufferSize; });
+        cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
+        // Adiciona a linha ao buffer
         buffer.push(row);
+
         // Notifica aos consumidores
         cv.notify_all();
     };
-
+    // Assinala aaos consumidores que encerrou a produção
     endProduction = true;
     cv.notify_all();
 };
@@ -370,6 +371,7 @@ void Loader::consumer() {
 }
 
 void Loader::execute(int numThreads){
+    // numThreads += 2;
     auto start = std::chrono::high_resolution_clock::now();
 
     getInput();
