@@ -310,6 +310,8 @@ void Extractor::execute(int numThreads){
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "--- Time elapsed in extractor : " << elapsed.count() << "ms" << std::endl;
+
+    endProduction = false;
 };
 
 // ###############################################################################################

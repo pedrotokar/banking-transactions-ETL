@@ -232,7 +232,7 @@ std::shared_ptr<DataFrame> buildDFteste3() {
 
 void teste3() {
     std::shared_ptr<DataFrame> df = buildDFteste3();
-    FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
+    // FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
     auto e0 = std::make_shared<Extractor>();
     std::shared_ptr<DataFrame> dfOut0 = buildDFteste3();
