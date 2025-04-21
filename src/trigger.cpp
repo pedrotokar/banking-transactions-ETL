@@ -87,21 +87,21 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
                 tasksQueue.pop();
             }
 
-            int numThreadsCalling = 5;
-            std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> threadList = currentTask->executeMultiThread(5);
-            auto copy = threadList.first;
-//            for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
-            //Parece estar morrendo aqui
-            std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
-            for(auto& thread: threadList.second){
+            int numThreadsCalling = 1;
+            std::vector<int> completedThreads(numThreadsCalling, 0);
+            std::vector<std::thread> threadList = currentTask->executeMultiThread(numThreadsCalling, completedThreads);
+            //Rodando esse vetor você pode saber quando uma thread completou (e se o vetor for todo de verdadeiros, se o bloco completou)
+            //Não to com energia pra fazer um sistema que verifique por isso, mas com certeza é possível agora
+
+            for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
+            for(auto& thread: threadList){
                 if(thread.joinable()){
                     thread.join();
                 }
-                std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
-                // for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
+            //    for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
             }
-            std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
-            // for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
+            for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
+
             currentTask->finishExecution();
 
             {
@@ -264,9 +264,10 @@ void Trigger::orchestratePipelineMultiThread2(int numThreads) {
                 currentTask = tasksQueue.top();
                 tasksQueue.pop();
             }
-
-            std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> threadList = currentTask->executeMultiThread();
-            for(auto& thread: threadList.second){
+            int numThreadsCalling = 5;
+            std::vector<int> completedThreads(numThreadsCalling, 0);
+            std::vector<std::thread> threadList = currentTask->executeMultiThread(numThreadsCalling, completedThreads);
+            for(auto& thread: threadList){
                 //std::cout << pair.second.get_id() << std::endl;
                 if(thread.joinable()){
                     thread.join();
