@@ -1060,8 +1060,93 @@ void testeBatch() {
     // cout << "DataFrame after adding a new row:\n" << df.toString(1000) << endl;
 }
 
+///----.-----------------------------------------------------
+///----.-----------------------------------------------------
+///----.-----------------------------------------------------
+///----.-----------------------------------------------------
+
 using DataFramePtr         = std::shared_ptr<DataFrame>;
 using DataFrameWithIndexes = std::pair<std::vector<int>, DataFramePtr>;
+
+class T1Transformer final : public Transformer {
+    std::mutex writeMtx;
+public:
+    void transform(std::vector<DataFramePtr>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
+        if (inputs.size() < 2) return;
+        auto inTrans  = inputs[0].second;   // E1
+        auto inUsers  = inputs[1].second;   // E2
+        auto out      = outputs[0];         // dfT1
+
+        // Posições nas colunas de E1
+        int pTrId   = inTrans->getColumn("id_transacao")         ->getPosition();
+        int pUser   = inTrans->getColumn("id_usuario_pagador")   ->getPosition();
+        int pMod    = inTrans->getColumn("modalidade_pagamento") ->getPosition();
+        int pValue  = inTrans->getColumn("valor_transacao")      ->getPosition();
+        int pDate   = inTrans->getColumn("data_horario")         ->getPosition();
+        int pRegT   = inTrans->getColumn("id_regiao")            ->getPosition();
+
+        // Posições nas colunas de E2
+        int pKey    = inUsers->getColumn("id_usuario")           ->getPosition();
+        int pSaldo  = inUsers->getColumn("saldo")                ->getPosition();
+        int pPix    = inUsers->getColumn("limite_PIX")           ->getPosition();
+        int pTed    = inUsers->getColumn("limite_TED")           ->getPosition();
+        int pDoc    = inUsers->getColumn("limite_DOC")           ->getPosition();
+        int pRegU   = inUsers->getColumn("id_regiao")            ->getPosition();
+
+        // Monta mapa de informações por usuário
+        std::unordered_map<std::string, std::tuple<double,double,double,double,std::string>> userMap;
+        for (size_t r = 0; r < inUsers->size(); ++r) {
+            auto uid   = inUsers->getElement<std::string>(r, pKey);
+            auto sal   = inUsers->getElement<double>       (r, pSaldo);
+            auto lpix  = inUsers->getElement<double>       (r, pPix);
+            auto lted  = inUsers->getElement<double>       (r, pTed);
+            auto ldoc  = inUsers->getElement<double>       (r, pDoc);
+            auto regU  = inUsers->getElement<std::string>  (r, pRegU);
+            userMap[uid] = std::make_tuple(sal, lpix, lted, ldoc, regU);
+        }
+
+        for (int idx : inputs[0].first) {
+            // Valores básicos da transação
+            auto trxId = inTrans->getElement<std::string>(idx, pTrId);
+            auto usr   = inTrans->getElement<std::string>(idx, pUser);
+            auto mod   = inTrans->getElement<std::string>(idx, pMod);
+            auto val   = inTrans->getElement<double>     (idx, pValue);
+            auto date  = inTrans->getElement<std::string>(idx, pDate);
+            auto regT  = inTrans->getElement<std::string>(idx, pRegT);
+
+            // Busca info do usuário
+            auto it = userMap.find(usr);
+            double sal = 0, lpix = 0, lted = 0, ldoc = 0;
+            std::string regU = "";
+            if (it != userMap.end()) {
+                std::tie(sal, lpix, lted, ldoc, regU) = it->second;
+            }
+
+            std::vector<std::any> row = {
+                trxId,
+                usr,
+                mod,
+                val,
+                sal,
+                lpix,
+                lted,
+                ldoc,
+                date,
+                regT,
+                regU,
+                static_cast<int>(true)    
+            };
+
+            
+            {
+                std::lock_guard<std::mutex> lk(writeMtx);
+                out->addRow(row);
+            }
+        }
+    }
+};
 
 class T2Transformer final : public Transformer {
     std::mutex writeMtx;
@@ -1069,149 +1154,118 @@ public:
     void transform(std::vector<DataFramePtr>& outputs,
                    const std::vector<DataFrameWithIndexes>& inputs) override
     {
-        if (inputs.size() < 2) return;
-        auto inTrans    = inputs[0].second;
-        auto inSaldos   = inputs[1].second;
-        auto out        = outputs[0];
+        if (inputs.empty()) return;
+        auto in  = inputs[0].second;   // df vindo de T1
+        auto out = outputs[0];         // dfT2
 
-        int pTrId   = inTrans->getColumn("id_transacao")      ->getPosition();
-        int pPayer  = inTrans->getColumn("id_usuario_pagador")->getPosition();
-        int pMod    = inTrans->getColumn("modalidade_pagamento")->getPosition();
-        int pValue  = inTrans->getColumn("valor_transacao")   ->getPosition();
-        int pApr    = out->getColumn("aprovacao")->getPosition();
-
-        std::unordered_map<std::string,double> mapaSaldo;
-        {
-            int pUser = inSaldos->getColumn("id_usuario")->getPosition();
-            int pBal  = inSaldos->getColumn("saldo_atual")->getPosition();
-            for (size_t r = 0; r < inSaldos->size(); ++r) {
-                auto uid   = inSaldos->getElement<std::string>(r, pUser);
-                auto bal   = inSaldos->getElement<double>(r, pBal);
-                mapaSaldo[uid] = bal;
-            }
-        }
+        int pMod    = in->getColumn("modalidade_pagamento")->getPosition();
+        int pVal    = in->getColumn("valor_transacao")     ->getPosition();
+        int pSaldo  = in->getColumn("saldo")               ->getPosition();
+        int pApr    = in->getColumn("aprovacao")           ->getPosition();
 
         for (int idx : inputs[0].first) {
-            std::vector<std::any> row;
-            for (int c = 0; c < inTrans->getHeader().size(); ++c) {
-                row.push_back(inTrans->getElement<std::string>(idx, c));
+            auto row = in->getRow(idx);
+
+            if (row[pMod] != "CREDITO") {
+                double valor = in->getElement<double>(idx, pVal);
+                double saldo = in->getElement<double>(idx, pSaldo);
+                if (saldo < valor) {
+                    row[pApr] = std::to_string(0);
+                }
             }
 
-            bool aprovada = true;
-            const auto& mod = inTrans->getElement<std::string>(idx, pMod);
-            if (mod != "CREDITO" && mod != "crédito") {
-                auto uid   = inTrans->getElement<std::string>(idx, pPayer);
-                auto valor = inTrans->getElement<double>(idx, pValue);
-                auto it    = mapaSaldo.find(uid);
-                aprovada = (it != mapaSaldo.end() && it->second >= valor);
+            {
+                std::lock_guard<std::mutex> lk(writeMtx);
+                out->addRow(row);
             }
-            row.push_back(static_cast<int>(aprovada));  
-
-            std::lock_guard<std::mutex> lk(writeMtx);
-            out->addRow(row);
         }
     }
 };
 
-
-
-class T4Transformer final : public Transformer {
+class T6Transformer final : public Transformer {
     std::mutex writeMtx;
 public:
     void transform(std::vector<DataFramePtr>& outputs,
                    const std::vector<DataFrameWithIndexes>& inputs) override
     {
-        if (inputs.size() < 3) return;
-        auto dt = inputs[0].second;  
-        auto dr = inputs[1].second;  
-        auto ur = inputs[2].second;  
-        auto out= outputs[0];
+        if (inputs.empty()) return;
+        auto in  = inputs[0].second;   // df de T1
+        auto out = outputs[0];         // dfT6
 
-        int pTr      = dt->getColumn("id_transacao")      ->getPosition();
-        int pPayer   = dt->getColumn("id_usuario_pagador")->getPosition();
-        int pRegTran = dt->getColumn("id_regiao")         ->getPosition();
+        // posições em T1
+        int pTrId = in->getColumn("id_transacao")    ->getPosition();
+        int pUser = in->getColumn("id_usuario_pagador")->getPosition();
+        int pVal  = in->getColumn("valor_transacao") ->getPosition();
 
-        int pRegKey     = dr->getColumn("id_regiao")     ->getPosition();
-        int pLatitude   = dr->getColumn("latitude")      ->getPosition();
-        int pLongitude  = dr->getColumn("longitude")     ->getPosition();
-
-        int pUserKey    = ur->getColumn("id_usuario")            ->getPosition();
-        int pRegUserKey = ur->getColumn("id_regiao_usuario")     ->getPosition();
-
-        std::unordered_map<int,std::pair<double,double>> mapaGeo;
-        for (size_t r = 0; r < dr->size(); ++r) {
-            int rid = dr->getElement<int>(r, pRegKey);
-            mapaGeo[rid] = {
-                dr->getElement<double>(r, pLatitude),
-                dr->getElement<double>(r, pLongitude)
-            };
+        std::unordered_map<std::string, std::pair<double,int>> stats;
+        for (size_t r = 0; r < in->size(); ++r) {
+            auto uid = in->getElement<std::string>(r, pUser);
+            double v = in->getElement<double>     (r, pVal);
+            auto &pr = stats[uid];
+            pr.first  += v;
+            pr.second += 1;
+        }
+        std::unordered_map<std::string,double> avg;
+        for (auto &kv : stats) {
+            avg[kv.first] = kv.second.first / kv.second.second;
         }
 
-        std::unordered_map<std::string,int> mapaUserReg;
-        for (size_t r = 0; r < ur->size(); ++r) {
-            auto uid = ur->getElement<std::string>(r, pUserKey);
-            int reg  = ur->getElement<int>(r, pRegUserKey);
-            mapaUserReg[uid] = reg;
-        }
-
+        // 2) para cada transação, gera (id_tr, score)
         for (int idx : inputs[0].first) {
-            auto trxId = dt->getElement<std::string>(idx, pTr);
-            auto payer = dt->getElement<std::string>(idx, pPayer);
-            int ridTran= dt->getElement<int>(idx, pRegTran);
+            auto trxId = in->getElement<std::string>(idx, pTrId);
+            auto uid   = in->getElement<std::string>(idx, pUser);
+            double v   = in->getElement<double>     (idx, pVal);
+            double mean = avg[uid];
 
-            auto itT = mapaGeo.find(ridTran);
-            if (itT == mapaGeo.end()) continue;
-            auto [latT, lonT] = itT->second;
+            // score: razão valor/mean (quanto maior, mais “arriscado”)
+            double score = (mean > 0 ? v / mean : 0.0);
 
-            auto itU = mapaUserReg.find(payer);
-            if (itU == mapaUserReg.end()) continue;
-            int ridUser = itU->second;
-            auto itUR = mapaGeo.find(ridUser);
-            if (itUR == mapaGeo.end()) continue;
-            auto [latU, lonU] = itUR->second;
-
-            std::vector<std::any> row = {
+            // monta linha de saída: [id_transacao, score_risco]
+            std::vector<std::string> row = {
                 trxId,
-                payer,
-                ridTran, latT, lonT,
-                ridUser, latU, lonU
+                std::to_string(score)
             };
+
             std::lock_guard<std::mutex> lk(writeMtx);
             out->addRow(row);
         }
     }
 };
-
 
 
 class T7Transformer final : public Transformer {
     std::mutex writeMtx;
 public:
     void transform(std::vector<DataFramePtr>& outputs,
-                   const std::vector<DataFrameWithIndexes>& inputs) override {
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
         if (inputs.empty()) return;
-        auto in  = inputs[0].second;
-        auto out = outputs[0];
+        auto in  = inputs[0].second;   // df de T1
+        auto out = outputs[0];         // dfT7
 
-        const int pTr   = in->getColumn("id_transacao")->getPosition();
-        const int pDate = in->getColumn("data_horario") ->getPosition();
+        int pTrId  = in->getColumn("id_transacao") ->getPosition();
+        int pDate  = in->getColumn("data_horario") ->getPosition();
 
         for (int idx : inputs[0].first) {
-            const std::string& ts = in->getElement<std::string>(idx, pDate);
-            if (ts.size() < 19) continue;
+            const std::string ts = in->getElement<std::string>(idx, pDate);
+            if (ts.size() < 13) continue;
             std::string hourStr = ts.substr(11, 2);
             if (!std::isdigit(hourStr[0]) || !std::isdigit(hourStr[1])) continue;
             int hour = std::stoi(hourStr);
+
             double score = std::abs(hour - 12) / 12.0;
 
-            std::vector<std::any> row = {
-                in->getElement<std::string>(idx, pTr), score
+            std::vector<std::string> row = {
+                in->getElement<std::string>(idx, pTrId),
+                std::to_string(score)
             };
+
             std::lock_guard<std::mutex> lk(writeMtx);
             out->addRow(row);
         }
     }
 };
+
 
 class PrintTransformer final : public Transformer {
 private:
@@ -1228,70 +1282,99 @@ public:
         }
     }
 };
-
 void testePipelineTransacoes(int nThreads = 2) {
-    std::cout << "[PIPELINE] Iniciando com " << nThreads << " thread(s)...\n";
 
-    DataFramePtr dfOutE1 = std::make_shared<DataFrame>();
-    dfOutE1->addColumn<std::string>("id_transacao");
-    dfOutE1->addColumn<std::string>("id_usuario_pagador");
-    dfOutE1->addColumn<std::string>("id_usuario_recebedor");
-    dfOutE1->addColumn<std::string>("id_regiao");
-    dfOutE1->addColumn<std::string>("modalidade_pagamento");
-    dfOutE1->addColumn<std::string>("data_horario");
-    dfOutE1->addColumn<double>     ("valor_transacao");
+    //====================Construção dos DFS===========================//
 
-    DataFramePtr dfOutE2 = std::make_shared<DataFrame>();
-    dfOutE2->addColumn<std::string>("id_usuario");
-    dfOutE2->addColumn<std::string>("id_regiao");
-    dfOutE2->addColumn<double>     ("saldo");
-    dfOutE2->addColumn<double>     ("limite_PIX");
-    dfOutE2->addColumn<double>     ("limite_TED");
-    dfOutE2->addColumn<double>     ("limite_DOC");
-    dfOutE2->addColumn<double>     ("limite_Boleto");
-    
-    
-    DataFramePtr dfOutE3 = std::make_shared<DataFrame>();
-    dfOutE3->addColumn<std::string>("id_regiao");
-    dfOutE3->addColumn<double>     ("latitude");
-    dfOutE3->addColumn<double>     ("longitude");
-    dfOutE3->addColumn<double>     ("media_transacional_mensal");
-    dfOutE3->addColumn<int>        ("num_fraudes_ult_30d");
+    auto dfE1 = std::make_shared<DataFrame>();
+    dfE1->addColumn<std::string>("id_transacao");
+    dfE1->addColumn<std::string>("id_usuario_pagador");
+    dfE1->addColumn<std::string>("id_usuario_recebedor");
+    dfE1->addColumn<std::string>("id_regiao"); // ocorrência da região
+    dfE1->addColumn<std::string>("modalidade_pagamento");
+    dfE1->addColumn<std::string>("data_horario");
+    dfE1->addColumn<double>     ("valor_transacao");
 
-    auto tp1 = std::make_shared<PrintTransformer>("------- Printing output e1");
-    auto tp2 = std::make_shared<PrintTransformer>("------- Printing output e2");
-    auto tp3 = std::make_shared<PrintTransformer>("------- Printing output e3");
+    auto dfE2 = std::make_shared<DataFrame>();
+    dfE2->addColumn<std::string>("id_usuario");
+    dfE2->addColumn<std::string>("id_regiao"); // região do usuário mora
+    dfE2->addColumn<double>     ("saldo");
+    dfE2->addColumn<double>     ("limite_PIX");
+    dfE2->addColumn<double>     ("limite_TED");
+    dfE2->addColumn<double>     ("limite_DOC");
+    dfE2->addColumn<double>     ("limite_Boleto");
 
+    auto dfT1 = std::make_shared<DataFrame>();
+    dfT1->addColumn<std::string>("id_transacao");
+    dfT1->addColumn<std::string>("id_usuario_pagador");
+    dfT1->addColumn<std::string>("modalidade_pagamento");
+    dfT1->addColumn<double>     ("valor_transacao");
+    dfT1->addColumn<double>     ("saldo");
+    dfT1->addColumn<double>     ("limite_PIX");
+    dfT1->addColumn<double>     ("limite_TED");
+    dfT1->addColumn<double>     ("limite_DOC");
+    dfT1->addColumn<std::string>("data_horario");
+    dfT1->addColumn<std::string>("id_regiao_transacao");
+    dfT1->addColumn<std::string>("id_regiao_usuario");
+    dfT1->addColumn<int>        ("aprovacao");
+
+    auto dfT2 = dfT1->emptyCopy();
+
+    auto dfT6 = std::make_shared<DataFrame>();
+    dfT6->addColumn<std::string>("id_transacao");
+    dfT6->addColumn<double>     ("score_risco");
+
+    auto dfT7 = std::make_shared<DataFrame>();
+    dfT7->addColumn<std::string>("id_transacao");
+    dfT7->addColumn<double>     ("score_risco");
+
+     //====================Init Triggers===========================//
 
     auto e1 = std::make_shared<Extractor>();
     e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
-    e1->addOutput(dfOutE1);
+    e1->addOutput(dfE1);
 
     auto e2 = std::make_shared<Extractor>();
     e2->addRepo(new FileRepository("data/informacoes_cadastro_100k.csv", ",", true));
-    e2->addOutput(dfOutE2);
+    e2->addOutput(dfE2);
 
-    auto e3 = std::make_shared<Extractor>();
-    e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
-    e3->addOutput(dfOutE3);
+    //==================== Construção dos DAG ===========================//
+    auto t1 = std::make_shared<T1Transformer>();     
+    t1->addOutput(dfT1);
 
-    e1->addNext(tp1, {1});
-    e2->addNext(tp2, {1});
-    e3->addNext(tp3, {1});
+    auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
+    t1->addNext(tp1, {1});
+
+    auto t2 = std::make_shared<T2Transformer>();
+    t2->addOutput(dfT2);
+
+    auto tp2 = std::make_shared<PrintTransformer>(">>> T2 outputs");
+    t2->addNext(tp2, {1});
+
+    auto t6 = std::make_shared<T6Transformer>();
+    t6->addOutput(dfT6);
+
+    auto tp6 = std::make_shared<PrintTransformer>(">>> T6 outputs");
+    t6->addNext(tp6, {1});
+
+    auto t7 = std::make_shared<T7Transformer>();
+    t7->addOutput(dfT7);
+
+    auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
+    t7->addNext(tp7, {1});
+    
+    e1->addNext(t1, {1});
+    e2->addNext(t1, {1});
+
+    t1->addNext(t2, {1});
+    t1->addNext(t6, {1});
+    t1->addNext(t7, {1});
+
 
     RequestTrigger trigger;
     trigger.addExtractor(e1);
     trigger.addExtractor(e2);
-    trigger.addExtractor(e3);
     trigger.start(nThreads);
-
-
-    auto safePreview = [](DataFramePtr df){
-        size_t n = std::min<size_t>(10, df->size());
-        std::cout << df->toString(n) << "\n";
-    };
-
-    std::cout << "[PIPELINE] Finalizado.\n";
 }
 
 int main() {
