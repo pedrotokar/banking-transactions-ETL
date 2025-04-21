@@ -28,6 +28,9 @@ protected:
     // Métodos internos para orquestração da pipeline
     void orchestratePipelineMonoThread();
     void orchestratePipelineMultiThread(int numThreads);
+    // Novos métodos para orquestração com múltiplas threads
+    void orchestratePipelineMultiThread2(int numThreads);
+    bool calculateThreadsDistribution(int numThreads);
 };
 
 // Trigger que executa a pipeline apenas uma vez

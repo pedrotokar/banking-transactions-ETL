@@ -74,6 +74,45 @@ const bool Task::checkPreviousTasks() const {
     return cntExecutedPreviousTasks == previousTasks.size();
 }
 
+void Task::setWeight(int w) {
+    weight = w;
+}
+int Task::getWeight() const {
+    return weight;
+}
+void Task::setRecomendedThreadsNum(size_t numThreads) {
+    recomendedThreadsNum = numThreads;
+}
+size_t Task::getRecomendedThreadsNum() const {
+    return recomendedThreadsNum;
+}
+
+void Task::setAuxOrquestrador(int val) {
+    auxOrquestrador = val;
+}
+
+void Task::incrementAuxOrquestrador() {
+    auxOrquestrador++;
+}
+
+int Task::getAuxOrquestrador() const {
+    return auxOrquestrador;
+}
+
+void Task::setTaskName(const std::string name) {
+    taskName = name;
+}
+std::string Task::getTaskName() const {
+    return taskName;
+}
+
+void Task::setLevel(int newLevel) {
+    taskLevel = newLevel;
+}
+
+int Task::getLevel() const {
+    return taskLevel;
+}
 
 // ###############################################################################################
 // ###############################################################################################

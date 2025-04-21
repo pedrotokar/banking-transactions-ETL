@@ -803,46 +803,58 @@ void testeGeralEmap(int nThreads = 1){
     auto e0 = std::make_shared<Extractor>();
     e0->addOutput(dfOutE);
     e0->addRepo(inputRepository);
+    e0->setTaskName("e0");
 
     auto t11FilterStrings = std::vector<std::string>{"Secretario", "Professor", "Diretor"};
     auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
     t11->addOutput(dfOut11);
+    t11->setTaskName("t1.1");
 
     auto t12FilterStrings = std::vector<std::string>{"AlunoGrad", "AlunoMesc"};
     auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
     t12->addOutput(dfOut12);
+    t12->setTaskName("t1.2");
 
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
+    t21->setTaskName("t2.1");
 
     auto t22 = std::make_shared<CounterTransformer>();
     t22->addOutput(dfOut22);
+    t22->setTaskName("t2.2");
 
     auto t23 = std::make_shared<SalarySumTransformer>();
     t23->addOutput(dfOut23);
+    t23->setTaskName("t2.3");
 
     auto t24 = std::make_shared<AgeSumTransformer>();
     t24->addOutput(dfOut24);
+    t24->setTaskName("t2.4");
 
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
+    t3->setTaskName("t3");
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
     auto l0 = std::make_shared<Loader>();
     l0->addRepo(outputRepositoryFilter);
+    l0->setTaskName("l0");
 
     FileRepository* outputRepositoryAges = new FileRepository("data/output_emap_age.csv", ",", true);
     auto l1 = std::make_shared<Loader>();
     l1->addRepo(outputRepositoryAges);
+    l1->setTaskName("l1");
 
     FileRepository* outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
     auto l2 = std::make_shared<Loader>();
     l2->addRepo(outputRepositorySalary);
+    l2->setTaskName("l2");
 
     FileRepository* outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
     auto l3 = std::make_shared<Loader>();
     l3->addRepo(outputRepositoryMean);
-
+    l3->setTaskName("l3");
+    
     //================================================//
     //                Construção do DAG               //
     //================================================//
@@ -914,10 +926,9 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
     cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
-    while (true){
-        int i = 0;
-    }
-
+    // while (true){
+    //     int i = 0;
+    // }
 }
 
 void testeTransformer(int nThreads = 1){
