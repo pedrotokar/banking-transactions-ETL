@@ -1064,7 +1064,6 @@ void testeBatch() {
 ///----.-----------------------------------------------------
 ///----.-----------------------------------------------------
 ///----.-----------------------------------------------------
-
 using DataFramePtr         = std::shared_ptr<DataFrame>;
 using DataFrameWithIndexes = std::pair<std::vector<int>, DataFramePtr>;
 
