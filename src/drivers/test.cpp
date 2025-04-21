@@ -1082,5 +1082,7 @@ int main(int argc, char *argv[]) {
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 
-    return 0;
-}
+<<<<<<< HEAD:src/drivers/test.cpp
+=======
+
+>>>>>>> 8cf50513a0e320bcc16101c81053a46b646fa568:src/main.cpp

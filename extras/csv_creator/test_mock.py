@@ -7,7 +7,7 @@ from math import radians, sin, cos, sqrt, atan2
 print("Iniciando")
 
 DATA_DIR = "data"
-OUTPUT_DIR = os.path.join(DATA_DIR, "dataoutputs")
+OUTPUT_DIR = os.path.join(DATA_DIR, "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Carrega as informações geográficas das regiões brasileiras (E3)
