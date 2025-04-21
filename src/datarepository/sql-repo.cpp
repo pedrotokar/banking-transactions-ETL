@@ -89,6 +89,7 @@ std::vector<StrRow> SQLiteRepository::parseBatch(const std::string& batch) {
     parsedRows.reserve(batchSize);
     for (size_t i = 0; i < batchSize; ++i) {
         getRow();
+        if (done) break;
         auto row = parseRow(batch);
         parsedRows.push_back(row);
     }

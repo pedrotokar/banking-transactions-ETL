@@ -28,6 +28,8 @@ public:
 
     virtual std::string serializeBatch(const std::vector<StrRow>& data) = 0;
 
+    virtual bool hasNext() const = 0;
+    
     virtual void resetReader() {};
     virtual void clear() {};
     virtual void close() {};
@@ -36,7 +38,7 @@ public:
 
 class FileRepository : public DataRepository {
 private:
-    size_t chunkSize = 1 << 27; // size of chunk in bytes
+    size_t chunkSize = 1 << 20; // size of chunk in bytes
     std::vector<char> buffer;
 
     std::string fileName;
@@ -71,7 +73,7 @@ public:
 
     std::string serializeBatch(const std::vector<StrRow>& data) override;
 
-    bool hasNext() const { return hasNextLine; }
+    bool hasNext() const override { return hasNextLine; }
 
     void resetReader() override;
     void close() override;
@@ -122,7 +124,7 @@ public:
 
     std::string serializeBatch(const std::vector<StrRow>& data) override;
 
-    bool hasNext() const { return !done; }
+    bool hasNext() const override { return !done; }
 
     void resetReader() override;
     void clear() override;
