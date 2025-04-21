@@ -87,23 +87,35 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
                 tasksQueue.pop();
             }
 
-            int numThreadsCalling = 1;
-            std::vector<int> completedThreads(numThreadsCalling, 0);
-            std::vector<std::thread> threadList = currentTask->executeMultiThread(numThreadsCalling, completedThreads);
+            int numThreadsCalling = 4;
+            std::vector<int>* completedThreads = new std::vector<int>(numThreadsCalling, 0);
+            std::vector<std::thread> threadList = currentTask->executeMultiThread(numThreadsCalling, (*completedThreads));
             //Rodando esse vetor você pode saber quando uma thread completou (e se o vetor for todo de verdadeiros, se o bloco completou)
             //Não to com energia pra fazer um sistema que verifique por isso, mas com certeza é possível agora
 
-            for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
-            for(auto& thread: threadList){
-                if(thread.joinable()){
-                    thread.join();
+            std::vector<int> completed(numThreadsCalling, 0);
+            int runningCount = numThreadsCalling;
+            while(runningCount != 0){
+                for(int i = 0; i < numThreadsCalling; i++){
+                    if(completed[i] == 0 && (*completedThreads)[i] == 1){
+                        std::cout << "thread " << i << " terminou" << std::endl;
+                        runningCount--;
+                        threadList[i].join();
+                        completed[i] = true;
+                    }
                 }
-            //    for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
             }
-            for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
+
+            // for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
+            // for(auto& thread: threadList){
+            //     if(thread.joinable()){
+            //         thread.join();
+            //     }
+            //     for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
+            // }
+            // for(int i = 0; i < numThreadsCalling; i++) std::cout << completedThreads.at(i) << " "; std::cout << std::endl;
 
             currentTask->finishExecution();
-
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
                 for (const auto& nextTask : currentTask->getNextTasks()) {
