@@ -215,12 +215,13 @@ void Extractor::executeMonoThread(){
 }
 
 std::vector<std::thread> Extractor::executeMultiThread(int numThreads){
+    // numThreads += 2;
     std::vector<std::thread> runningThreads;
     if(numThreads == 1 || numThreads == 2){
         runningThreads.emplace_back(&Extractor::executeMonoThread, this);
     }
     else{
-        std::cout << "Executando extrator com " << numThreads - 1<< " de consumidor" << std::endl;
+        std::cout << "Executando extrator com " << numThreads << " threads" << std::endl;
         maxBufferSize = numThreads * numThreads;
 
         runningThreads.emplace_back(&Extractor::producer, this);
@@ -323,6 +324,8 @@ std::vector<DataFrameWithIndexes> Loader::getInput(int numThreads) {
 }
 
 void Loader::executeMonoThread(){
+    repository->open();
+    std::cout << "Executando loader sem paralelizar" << std::endl;
     if(true){ //Tenho só que colocar linha por cima?
         std::vector<DataFrameWithIndexes> inputs = getInput(1);
         if(true){ //Tenho que apagar o repositório?
@@ -344,12 +347,14 @@ void Loader::executeMonoThread(){
 }
 
 std::vector<std::thread> Loader::executeMultiThread(int numThreads){
-//    numThreads += 2;
+    // numThreads += 2;
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
         runningThreads.emplace_back(&Loader::executeMonoThread, this);
     }
     else{
+        repository->open();
+        std::cout << "Executando loader com " << numThreads << " threads" << std::endl;
         if(true){ //Tenho que só colocar a linha por cima?
             std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
             if(true){ //Tenho que apagar o repositório?
@@ -381,10 +386,12 @@ void Loader::addRows(DataFrameWithIndexes pair) {
         // Adiciona as linhas ao vetor de linhas
         rows.push_back(row);
     }
+
+    std::string batchRows = repository->serializeBatch(rows);
+
     {
         std::lock_guard<std::mutex> lock(repoMutex);
-        for (StrRow row : rows)
-            repository->appendRow(row);
+        repository->appendStr(batchRows);
     }
 };
 

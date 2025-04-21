@@ -316,7 +316,7 @@ void testExtractorAndLoader(int nThreads = 2) {
     e0->addNext(l0, {1});
     e1->addNext(l1, {1});
 
-    FileRepository* outputRepository = new FileRepository("data/mock_emap.csv", ",", true);
+    FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
     l0->addRepo(outputRepository);
 
     
@@ -325,7 +325,7 @@ void testExtractorAndLoader(int nThreads = 2) {
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
-    trigger.addExtractor(e1);
+    // trigger.addExtractor(e1);
 
     //================================================//
     // Inicialização do trigger e execução da pipeline//
@@ -1140,9 +1140,9 @@ int main(int argc, char *argv[]) {
     // }
 
     auto start = std::chrono::high_resolution_clock::now();
-    // testExtractorAndLoader();
+    testExtractorAndLoader();
     //testeTransformer(3);
-    testeGeralEmap(4);
+    // testeGeralEmap(4);
     // testeBatch();
     // testLoaderSQL();
 

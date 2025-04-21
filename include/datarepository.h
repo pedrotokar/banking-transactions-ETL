@@ -33,6 +33,8 @@ public:
     virtual void resetReader() {};
     virtual void clear() {};
     virtual void close() {};
+
+    virtual void open() {};
 };
 
 
