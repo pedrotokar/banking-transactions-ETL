@@ -51,7 +51,8 @@ protected:
 
             // Executa a tarefa
             std::cout << "(1)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
-            task->execute();
+            task->executeMonoThread();
+            task->finishExecution();
             std::cout << "(2)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
 
             // Adiciona as próximas tarefas à fila
@@ -108,8 +109,13 @@ protected:
                 }
 
                 // Executa a task fora da região crítica.
-                currentTask->execute();
-                currentTask->resetExecutedPreviousTasks();
+                std::vector<std::thread> threadList = currentTask->executeMultiThread();
+                for(auto& workingThread: threadList){
+                    if(workingThread.joinable()){
+                        workingThread.join();
+                    }
+                }
+                currentTask->finishExecution();
 
                 // Após a execução, adiciona as próximas tasks (se houver) na fila.
                 {
