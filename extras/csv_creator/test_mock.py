@@ -4,8 +4,10 @@ import pandas as pd
 import numpy as np
 from math import radians, sin, cos, sqrt, atan2
 
+print("Iniciando")
+
 DATA_DIR = "data"
-OUTPUT_DIR = "outputs"
+OUTPUT_DIR = os.path.join(DATA_DIR, "dataoutputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Carrega as informações geográficas das regiões brasileiras (E3)

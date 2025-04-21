@@ -1,9 +1,12 @@
 out
+bankETL
+tests
 *.exe
 .venv
 .vscode
 .github
 data/output*
+data/outputs/*
 data/mock_emap.csv
 data/mock_emap_processed.csv
 venv/
