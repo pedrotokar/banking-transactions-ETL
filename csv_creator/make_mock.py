@@ -80,6 +80,9 @@ for label, N in sizes.items():
 
     df_users = pd.DataFrame(usuarios)
 
+    csv_path = os.path.join(output_dir, f"informacoes_cadastro_{label}.csv")
+    df_users.to_csv(csv_path, index=False)
+    print(f"Tabela 2 (CSV) salva em: {csv_path}")
     # Salva como .sql
     sql_path = os.path.join(output_dir, f"informacoes_cadastro_{label}.sql")
     with open(sql_path, "w") as f:
