@@ -74,6 +74,10 @@ const bool Task::checkPreviousTasks() const {
     return cntExecutedPreviousTasks == previousTasks.size();
 }
 
+const bool Task::canBeParallel(){
+    return !blockMultiThreading;
+}
+
 void Task::setWeight(int w) {
     weight = w;
 }

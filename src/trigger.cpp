@@ -363,7 +363,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             //    std::lock_guard<std::mutex> lk(orchestratorMutex);
             //    orchestratorCv.notify_one();
             // }
-
+            std::cout << crrTask->canBeParallel() << std::endl;
             auto threadsList = crrTask->executeMultiThread(crrTaskThreadsNum, (*flags), orchestratorCv, orchestratorMutex);
             std::vector<bool> crrJoined(crrTaskThreadsNum, false);
 

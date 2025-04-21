@@ -814,6 +814,7 @@ void testeGeralEmap(int nThreads = 1){
     auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
     t12->addOutput(dfOut12);
     t12->setTaskName("t1.2");
+    t12->blockParallel();
 
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
@@ -834,6 +835,7 @@ void testeGeralEmap(int nThreads = 1){
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
     t3->setTaskName("t3");
+    t3->blockParallel();
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
     auto l0 = std::make_shared<Loader>();
@@ -854,6 +856,7 @@ void testeGeralEmap(int nThreads = 1){
     auto l3 = std::make_shared<Loader>();
     l3->addRepo(outputRepositoryMean);
     l3->setTaskName("l3");
+    l3->blockParallel();
     
     //================================================//
     //                Construção do DAG               //
