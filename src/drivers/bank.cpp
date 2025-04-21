@@ -37,7 +37,7 @@ public:
         int pSaldo  = inUsers->getColumn("saldo")                ->getPosition();
         int pPix    = inUsers->getColumn("limite_PIX")           ->getPosition();
         int pTed    = inUsers->getColumn("limite_TED")           ->getPosition();
-        int pDoc    = inUsers->getColumn("limite_DOC")           ->getPosition();
+        int pCre    = inUsers->getColumn("limite_CREDITO")           ->getPosition();
         int pBol    = inUsers->getColumn("limite_Boleto")        ->getPosition();
         int pRegU   = inUsers->getColumn("id_regiao")            ->getPosition();
 
@@ -50,10 +50,10 @@ public:
             auto sal  = inUsers->getElement<double>     (r, pSaldo);
             auto lpix = inUsers->getElement<double>     (r, pPix);
             auto lted = inUsers->getElement<double>     (r, pTed);
-            auto ldoc = inUsers->getElement<double>     (r, pDoc);
+            auto lcre = inUsers->getElement<double>     (r, pCre);
             auto lbol = inUsers->getElement<double>     (r, pBol);
             auto regU = inUsers->getElement<std::string>(r, pRegU);
-            userMap[uid] = std::make_tuple(sal, lpix, lted, ldoc, lbol, regU);
+            userMap[uid] = std::make_tuple(sal, lpix, lted, lcre, lbol, regU);
         }
 
         for (int idx : inputs[0].first) {
@@ -66,11 +66,11 @@ public:
             auto regT  = inTrans->getElement<std::string>(idx, pRegT);
 
             // desempacota info do usuário
-            double sal, lpix, lted, ldoc, lbol;
+            double sal, lpix, lted, lcre, lbol;
             std::string regU;
             auto it = userMap.find(usr);
             if (it != userMap.end()) {
-                std::tie(sal, lpix, lted, ldoc, lbol, regU) = it->second;
+                std::tie(sal, lpix, lted, lcre, lbol, regU) = it->second;
             }
 
             // monta row incluindo limite_Boleto (lbol)
@@ -82,7 +82,7 @@ public:
                 sal,
                 lpix,
                 lted,
-                ldoc,
+                lcre,
                 lbol,
                 date,
                 regT,
@@ -148,7 +148,7 @@ public:
         int pVal    = in->getColumn("valor_transacao")     ->getPosition();
         int pPixLim = in->getColumn("limite_PIX")          ->getPosition();
         int pTedLim = in->getColumn("limite_TED")          ->getPosition();
-        int pDocLim = in->getColumn("limite_DOC")          ->getPosition();
+        int pCreLim = in->getColumn("limite_CREDITO")          ->getPosition();
         int pBolLim = in->getColumn("limite_Boleto")       ->getPosition();
         int pApr    = in->getColumn("aprovacao")           ->getPosition();
 
@@ -165,8 +165,6 @@ public:
                     limite = in->getElement<double>(idx, pPixLim);
                 } else if (mod == "TED") {
                     limite = in->getElement<double>(idx, pTedLim);
-                } else if (mod == "DOC") {
-                    limite = in->getElement<double>(idx, pDocLim);
                 } else if (mod == "Boleto") {
                      limite = in->getElement<double>(idx, pBolLim);
                 }
@@ -412,7 +410,7 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfE2->addColumn<double>     ("saldo");
     dfE2->addColumn<double>     ("limite_PIX");
     dfE2->addColumn<double>     ("limite_TED");
-    dfE2->addColumn<double>     ("limite_DOC");
+    dfE2->addColumn<double>     ("limite_CREDITO");
     dfE2->addColumn<double>     ("limite_Boleto");
 
     auto dfE3 = std::make_shared<DataFrame>();
@@ -430,7 +428,7 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfT1->addColumn<double>     ("saldo");
     dfT1->addColumn<double>     ("limite_PIX");
     dfT1->addColumn<double>     ("limite_TED");
-    dfT1->addColumn<double>     ("limite_DOC");
+    dfT1->addColumn<double>     ("limite_CREDITO");
     dfT1->addColumn<double>     ("limite_Boleto");
     dfT1->addColumn<std::string>("data_horario");
     dfT1->addColumn<std::string>("id_regiao_transacao");
