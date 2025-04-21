@@ -55,7 +55,7 @@ void Trigger::orchestratePipelineMonoThread() {
     }
     std::cout << "Pipeline concluída.\n";
 }
-
+/*
 void Trigger::orchestratePipelineMultiThread(int numThreads) {
     std::queue<std::shared_ptr<Task>> tasksQueue;
     std::mutex queueMutex;
@@ -142,7 +142,7 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
             workerThread.join();
         }
     }
-}
+}*/
 
 bool Trigger::calculateThreadsDistribution(int numThreads) {
     std::cout << "Calculando a distribuição ideal de threads...\n";
@@ -242,7 +242,7 @@ struct TaskComparator {
         return (a->getWeight() > b->getWeight()) || (a->getWeight() == b->getWeight() && a->getLevel() < b->getLevel());
     }
 };
-
+/*
 void Trigger::orchestratePipelineMultiThread2(int numThreads) {
     std::priority_queue<std::shared_ptr<Task>, std::vector<std::shared_ptr<Task>>, TaskComparator> tasksQueue;
     std::mutex queueMutex;
@@ -313,7 +313,7 @@ void Trigger::orchestratePipelineMultiThread2(int numThreads) {
             workerThread.join();
         }
     }
-}
+}*/
 
 struct ExecGroup {
     std::shared_ptr<Task> task;
@@ -342,15 +342,15 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             tasksQueue.pop();
 
             // Decide quantas threads essa Task quer usar
-            int crrTaskThreadsNum = std::min(maxThreads - usedThreads, 2);
+            int crrTaskThreadsNum = std::min(maxThreads - usedThreads, 1);
 
             if(crrTaskThreadsNum <= 0) {
                 std::cout << "Número de threads inválido para a tarefa: " << crrTask->getTaskName() << std::endl;
                 continue;
             }
 
-            auto flags = std::make_shared<std::vector<std::atomic<bool>>>();
-            flags->resize(crrTaskThreadsNum);
+            auto flags = std::make_shared<std::vector<std::atomic<bool>>>(crrTaskThreadsNum);
+            //flags->resize(crrTaskThreadsNum);
             for (auto &f : *flags) f.store(false, std::memory_order_relaxed);
 
             // o que o executeMultiThread deve fazer
@@ -364,7 +364,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             //    orchestratorCv.notify_one();
             // }
 
-            auto threadsList = crrTask->executeMultiThread(crrTaskThreadsNum, flags, orchestratorCv, orchestratorMutex);
+            auto threadsList = crrTask->executeMultiThread(crrTaskThreadsNum, (*flags), orchestratorCv, orchestratorMutex);
             std::vector<bool> crrJoined(crrTaskThreadsNum, false);
 
             // registra o grupo ativo

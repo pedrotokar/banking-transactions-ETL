@@ -114,9 +114,13 @@ int Task::getLevel() const {
     return taskLevel;
 }
 
-void Task::executeMonoThreadSpecial(std::vector<int>& completedList, int tIndex){
+void Task::executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
     executeMonoThread();
-    completedList[tIndex] = true;
+    completedList[tIndex].store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(orchestratorMutex);
+        orchestratorCv.notify_one();
+    }
 }
 
 // ###############################################################################################
@@ -138,19 +142,25 @@ void Transformer::decreaseConsumingCounter(){
 
 void Transformer::transformThread(std::vector<std::shared_ptr<DataFrame>>& outputs,
                      const std::vector<DataFrameWithIndexes>& inputs,
-                     std::vector<int>& completedList, int tIndex){
+                     std::vector<std::atomic<bool>>& completedList, int tIndex,
+                     std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
     // std::cout << tIndex << " " << completedList->size() << std::endl;
     transform(outputs, inputs);
-    completedList[tIndex] = true;
+    completedList[tIndex].store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(orchestratorMutex);
+        orchestratorCv.notify_one();
+    }
 }
 
-std::vector<std::thread> Transformer::executeMultiThread(int numThreads, std::vector<int>& completedThreads){
+std::vector<std::thread> Transformer::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                         std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
-        runningThreads.emplace_back(&Transformer::executeMonoThreadSpecial, this, ref(completedThreads), 0);
+        runningThreads.emplace_back(&Transformer::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
     }
     else{
-        runningThreads = executeWithThreading(numThreads, completedThreads);
+        runningThreads = executeWithThreading(numThreads, completedThreads,  orchestratorCv, orchestratorMutex);
     }
     return runningThreads;
 }
@@ -178,7 +188,8 @@ void Transformer::executeMonoThread(){
 }
 
 //Função separada da executeMultiThread para não poluir ela
-std::vector<std::thread> Transformer::executeWithThreading(int numThreads, std::vector<int>& completedList){
+std::vector<std::thread> Transformer::executeWithThreading(int numThreads, std::vector<std::atomic<bool>>& completedList,
+                                                           std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
     //Um vector contendo as entradas que serão passadas para cada thread
     std::vector<std::vector<DataFrameWithIndexes>> threadInputs;
     for (int i = 0; i < numThreads; i++){
@@ -214,7 +225,7 @@ std::vector<std::thread> Transformer::executeWithThreading(int numThreads, std::
 //    threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
-        threadList.emplace_back(&Transformer::transformThread, this, ref(outputDFs), threadInputs.at(tIndex), ref(completedList), tIndex);
+        threadList.emplace_back(&Transformer::transformThread, this, ref(outputDFs), threadInputs.at(tIndex), ref(completedList), tIndex, ref(orchestratorCv), ref(orchestratorMutex));
     }
     return threadList;
 }
@@ -266,24 +277,26 @@ void Extractor::executeMonoThread(){
     };
 }
 
-std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vector<int>& completedThreads){
+std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                       std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
-        runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0);
+        runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
     }
     else{
         std::cout << "Executando extrator com " << numThreads - 1<< " de consumidor" << std::endl;
         maxBufferSize = numThreads * numThreads;
 
-        runningThreads.emplace_back(&Extractor::producer, this, ref(completedThreads), 0);
+        runningThreads.emplace_back(&Extractor::producer, this, ref(completedThreads), 0,  ref(orchestratorCv), ref(orchestratorMutex));
         for (int i = 0; i < numThreads - 1; ++i) {
-            runningThreads.emplace_back(&Extractor::consumer, this, ref(completedThreads), i + 1);
+            runningThreads.emplace_back(&Extractor::consumer, this, ref(completedThreads), i + 1, ref(orchestratorCv), ref(orchestratorMutex));
         }
     }
     return runningThreads;
 }
 
-void Extractor::producer(std::vector<int>& completedList, int tIndex) {
+void Extractor::producer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                         std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) {
     while (true) {
         // Pega um batch de linhas da base de dados
         std::string rows = repository->getBatch();
@@ -310,10 +323,15 @@ void Extractor::producer(std::vector<int>& completedList, int tIndex) {
 
     // Notifica aos consumidores que encerrou a produção
     cv.notify_all();
-    completedList[tIndex] = true;
+    completedList[tIndex].store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(orchestratorMutex);
+        orchestratorCv.notify_one();
+    }
 };
 
-void Extractor::consumer(std::vector<int>& completedList, int tIndex) {
+void Extractor::consumer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                         std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) {
     while (true) {
         std::unique_lock<std::mutex> lock(bufferMutex);
 
@@ -341,7 +359,11 @@ void Extractor::consumer(std::vector<int>& completedList, int tIndex) {
         }
         cv.notify_all();
     }
-    completedList[tIndex] = true;
+    completedList[tIndex].store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(orchestratorMutex);
+        orchestratorCv.notify_one();
+    }
 }
 
 void Extractor::finishExecution(){
@@ -397,11 +419,12 @@ void Loader::executeMonoThread(){
     }
 }
 
-std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<int>& completedThreads){
+std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                    std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
 
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
-        runningThreads.emplace_back(&Loader::executeMonoThreadSpecial, this, ref(completedThreads), 0);
+        runningThreads.emplace_back(&Loader::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
     }
     else{
         if(true){ //Tenho que só colocar a linha por cima?
@@ -412,7 +435,7 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<
                 repository->appendHeader(header);
             }
             for (int i = 0; i < numThreads; i++) {
-                runningThreads.emplace_back(&Loader::addRows, this, inputs[i], ref(completedThreads), i);
+                runningThreads.emplace_back(&Loader::addRows, this, inputs[i], ref(completedThreads), i, ref(orchestratorCv), ref(orchestratorMutex));
             }
         } else {
             //Aqui vai entrar a lógica MULTITHREADED para atualizar linhas. Pra gerar as threads tem que usar o vetor runningThreads
@@ -426,7 +449,7 @@ void Loader::updateRepo(int numThreads) {
     return;    
 };
 
-void Loader::addRows(DataFrameWithIndexes pair, std::vector<int>& completedList, int tIndex) {
+void Loader::addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) {
     std::shared_ptr<DataFrame> dfInput = pair.second;
     std::vector<StrRow> rows;
     for (int i: pair.first) {
@@ -440,7 +463,11 @@ void Loader::addRows(DataFrameWithIndexes pair, std::vector<int>& completedList,
         for (StrRow row : rows)
             repository->appendRow(row);
     }
-    completedList[tIndex] = true;
+    completedList[tIndex].store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(orchestratorMutex);
+        orchestratorCv.notify_one();
+    }
 };
 
 void Loader::finishExecution() {

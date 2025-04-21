@@ -1082,7 +1082,7 @@ int main(int argc, char *argv[]) {
     //testeTransformer(3);
     // testeGeralEmap(1);
 
-    testeGeralEmap(4);
+    testeGeralEmap(10);
 
 
     auto end = std::chrono::high_resolution_clock::now();

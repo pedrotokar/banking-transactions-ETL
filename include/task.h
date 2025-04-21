@@ -37,7 +37,8 @@ public:
     //o primeiro deve simplesmente executar sem mexer em nenhuma interface de threading
     virtual void executeMonoThread() {};
     //e o segundo deverá enfileirar threads para trabalhar e retornar elas
-    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<int>& completedThreads) = 0;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) = 0;
 
     //método abstrato para gerenciar o uso dos dataframes de saída da task
     virtual void decreaseConsumingCounter() {};
@@ -78,7 +79,8 @@ protected:
     std::string taskName = "";
     int taskLevel = 0;
 
-    void executeMonoThreadSpecial(std::vector<int>& completedList, int tIndex);
+    void executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 class Transformer : public Task {
@@ -92,7 +94,8 @@ public:
 
     //Implementação específica do transformer para o executes
     void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<int>& completedThreads) override;
+    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
@@ -100,10 +103,12 @@ public:
 
 private:
     //Métodos privados para facilitar o gerenciamento do que fazer
-    std::vector<std::thread> executeWithThreading(int numThreads, std::vector<int>& completedList);
+    std::vector<std::thread> executeWithThreading(int numThreads, std::vector<std::atomic<bool>>& completedList,
+                                                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
     void transformThread(std::vector<std::shared_ptr<DataFrame>>& outputs,
                          const std::vector<DataFrameWithIndexes>& inputs,
-                         std::vector<int>& completedList, int tIndex);
+                         std::vector<std::atomic<bool>>& completedList, int tIndex,
+                         std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 
 protected:
     std::mutex consumingCounterMutex;
@@ -120,7 +125,8 @@ public:
 
     //Implementação específica do extractor para o execute
     void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<int>& completedThreads) override;
+    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
@@ -138,8 +144,10 @@ private:
     std::condition_variable cv;
     std::atomic<bool> endProduction;
 
-    void producer(std::vector<int>& completedList, int tIndex);
-    void consumer(std::vector<int>& completedList, int tIndex);
+    void producer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
+    void consumer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 class Loader : public Task {
@@ -151,7 +159,8 @@ public:
 
     //Implementação específica do loader para o execute
     void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<int>& completedThreads) override;
+    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void finishExecution() override;
@@ -165,7 +174,7 @@ private:
 
     void updateRepo(int numThreads);
 
-    void addRows(DataFrameWithIndexes pair, std::vector<int>& completedList, int tIndex);
+    void addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 #endif
