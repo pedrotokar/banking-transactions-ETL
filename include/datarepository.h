@@ -61,6 +61,8 @@ public:
     
     ~FileRepository() override;
 
+    void open();
+
     std::string getRow() override;
     std::string getBatch() override;
 

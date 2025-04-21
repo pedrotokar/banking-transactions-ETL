@@ -13,6 +13,16 @@ FileRepository::FileRepository(const std::string& fname,
                                  totalLines(0) {
 
     buffer.resize(chunkSize);
+    open();
+}
+
+void FileRepository::FileRepository::open() {
+    if (inFile.is_open()) {
+        inFile.close();
+    }
+    if (outFile.is_open()) {
+        outFile.close();
+    }
     outFile.open(fileName, std::ios::app | std::ios::out);
     inFile.open(fileName);
     if (!inFile.is_open() || !outFile.is_open()) {
@@ -21,6 +31,7 @@ FileRepository::FileRepository(const std::string& fname,
     if (hasHeader) {
         std::getline(inFile, currLine);
     }
+    return;
 }
 
 FileRepository::~FileRepository() {
