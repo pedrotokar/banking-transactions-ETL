@@ -112,7 +112,7 @@ void SQLiteRepository::appendRow(const std::vector<std::string>& data) {
     std::string sqlInsert = "INSERT INTO " + tableName + " VALUES ";
     sqlInsert += "(";
     for (size_t i = 0; i < data.size(); ++i) {
-        sqlInsert += data[i];
+        sqlInsert += "'" + data[i] + "'";
         if (i < data.size() - 1) {
             sqlInsert += ", ";
         }
@@ -135,7 +135,7 @@ std::string SQLiteRepository::serializeBatch(const std::vector<StrRow>& data) {
     for (const auto& row : data) {
         values += "(";
         for (size_t i = 0; i < row.size(); ++i) {
-            values += row[i];
+            values += "'" + row[i] + "'";
             if (i < row.size() - 1) {
                 values += ",";
             }
