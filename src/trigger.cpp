@@ -315,13 +315,139 @@ void Trigger::orchestratePipelineMultiThread2(int numThreads) {
     }
 }
 
+struct ExecGroup {
+    std::shared_ptr<Task> task;
+    std::shared_ptr<std::vector<std::atomic<bool>>> flags;
+    std::vector<std::thread> threads;
+    std::vector<bool> joined;
+};
+
+void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
+    std::queue<std::shared_ptr<Task>> tasksQueue;
+    for (auto& extr : vExtractors) 
+        tasksQueue.push(extr);
+
+    std::vector<ExecGroup> activeGroups;
+
+    int usedThreads = 0;
+
+    // mutex + condvar para orquestrador dormir/acordar
+    std::mutex orchestratorMutex;
+    std::condition_variable orchestratorCv;
+
+    while (!tasksQueue.empty() || !activeGroups.empty()) {
+        // Disparar tarefas quando houver threads disponíveis
+        while (!tasksQueue.empty() && usedThreads < maxThreads) {
+            auto crrTask = tasksQueue.front();
+            tasksQueue.pop();
+
+            // Decide quantas threads essa Task quer usar
+            int crrTaskThreadsNum = std::min(maxThreads - usedThreads, 2);
+
+            if(crrTaskThreadsNum <= 0) {
+                std::cout << "Número de threads inválido para a tarefa: " << crrTask->getTaskName() << std::endl;
+                continue;
+            }
+
+            auto flags = std::make_shared<std::vector<std::atomic<bool>>>();
+            flags->resize(crrTaskThreadsNum);
+            for (auto &f : *flags) f.store(false, std::memory_order_relaxed);
+
+            // o que o executeMultiThread deve fazer
+            // cria as threads e as coloca em execução
+            // cada thread vai executar a tarefa e, ao final, vai
+            // sinaliza conclusão
+            // (*flags)[i].store(true, std::memory_order_release);
+            // notificar o orquestrador
+            // {
+            //    std::lock_guard<std::mutex> lk(orchestratorMutex);
+            //    orchestratorCv.notify_one();
+            // }
+
+            auto threadsList = crrTask->executeMultiThread(crrTaskThreadsNum, flags, orchestratorCv, orchestratorMutex);
+            std::vector<bool> crrJoined(crrTaskThreadsNum, false);
+
+            // registra o grupo ativo
+            activeGroups.push_back(
+                ExecGroup{crrTask, flags, std::move(threadsList), std::move(crrJoined)}
+            );
+
+            usedThreads += crrTaskThreadsNum;
+        }
+
+        for (auto it = activeGroups.begin(); it != activeGroups.end(); ) {
+            auto& group = *it;
+
+            // percorre cada sub‑thread do grupo
+            for (size_t i = 0; i < group.threads.size(); ++i) {
+                // se terminou e ainda não chamou join()
+                if (!group.joined[i] && group.flags->at(i).load(std::memory_order_acquire)) {
+                    if (group.threads[i].joinable()) group.threads[i].join();
+
+                    usedThreads--;          // libera 1 slot
+                    group.joined[i] = true; // marca como joined
+                }
+            }
+
+            bool allJoined = true;
+            for (auto joined_ith : group.joined) {
+                if (!joined_ith) {
+                    allJoined = false;
+                    break;
+                }
+            }
+
+            if (allJoined) {
+                // finaliza a Task
+                group.task->finishExecution();
+
+                // enfileira nextTasks (leva em conta dependências)
+                for (auto& nxt : group.task->getNextTasks()) {
+                    nxt->incrementExecutedPreviousTasks();
+                    if (nxt->checkPreviousTasks())
+                        tasksQueue.push(nxt);
+                }
+
+                // remove do vector de grupos ativos
+                it = activeGroups.erase(it);
+            } 
+            else {
+                ++it;
+            }
+        }
+
+        // Aguarda notificação
+        if (tasksQueue.empty() && !activeGroups.empty()) {
+            std::unique_lock<std::mutex> lock(orchestratorMutex);
+            // acorda sempre que:
+            //  - chegar nova Task em tasksQueue, ou
+            //  - algum grupo terminar e notificar
+            orchestratorCv.wait(lock, [&](){
+                bool anyThreadFinished = false;
+                for (auto& group : activeGroups) {
+                    for (size_t i = 0; i < group.threads.size(); ++i) {
+                        if (!group.joined[i] && group.flags->at(i).load(std::memory_order_acquire)) {
+                            anyThreadFinished = true;
+                            break;
+                        }
+                    }
+                    if (anyThreadFinished) break;
+                }
+                
+                return !tasksQueue.empty() || anyThreadFinished;
+            });
+        }
+    }
+}
+
+
 // ##################################################################################################
 // ##################################################################################################
 // Implementação de RequestTrigger
 void RequestTrigger::start(int numThreads) {
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
-        orchestratePipelineMultiThread(numThreads);
+        orchestratePipelineMultiThread3(numThreads);
     } 
 
     else {

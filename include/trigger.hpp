@@ -30,6 +30,7 @@ protected:
     void orchestratePipelineMultiThread(int numThreads);
     // Novos métodos para orquestração com múltiplas threads
     void orchestratePipelineMultiThread2(int numThreads);
+    void orchestratePipelineMultiThread3(int numThreads);
     bool calculateThreadsDistribution(int numThreads);
 };
 
