@@ -3,6 +3,8 @@ import numpy as np
 import os
 import uuid
 from datetime import datetime, timedelta
+import sqlite3
+
 
 output_dir = "data/"
 os.makedirs(output_dir, exist_ok=True)
@@ -84,27 +86,50 @@ for label, N in sizes.items():
     df_users.to_csv(csv_path, index=False)
     print(f"Tabela 2 (CSV) salva em: {csv_path}")
     # Salva como .sql
-    sql_path = os.path.join(output_dir, f"informacoes_cadastro_{label}.sql")
-    with open(sql_path, "w") as f:
-        f.write(
-            "CREATE TABLE IF NOT EXISTS informacoes_cadastro (\n"
-            "  id_usuario VARCHAR(36) PRIMARY KEY,\n"
-            "  id_regiao VARCHAR(2),\n"
-            "  saldo FLOAT,\n"
-            "  limite_PIX FLOAT,\n"
-            "  limite_TED FLOAT,\n"
-            "  limite_DOC FLOAT,\n"
-            "  limite_Boleto FLOAT\n"
-            ");\n"
-        )
-        for row in df_users.itertuples(index=False):
-            f.write(
-                "INSERT INTO informacoes_cadastro "
-                "(id_usuario, id_regiao, saldo, limite_PIX, limite_TED, limite_DOC, limite_Boleto) VALUES "
-                f"('{row.id_usuario}', '{row.id_regiao}', {row.saldo:.2f}, "
-                f"{row.limite_PIX:.2f}, {row.limite_TED:.2f}, {row.limite_DOC:.2f}, {row.limite_Boleto:.2f});\n"
-            )
+
+    sql_path = os.path.join(output_dir, f"informacoes_cadastro_{label}.db")
+    con = sqlite3.connect(sql_path)
+    cursor = con.cursor()
+    i = 0
+    cursor.execute("DROP TABLE IF EXISTS informacoes_cadastro")
+    cursor.execute(
+            "CREATE TABLE IF NOT EXISTS informacoes_cadastro ("\
+            "id_usuario VARCHAR(36) PRIMARY KEY," \
+            "id_regiao VARCHAR(2)," \
+            "saldo FLOAT," \
+            "limite_PIX FLOAT," \
+            "limite_TED FLOAT," \
+            "limite_DOC FLOAT," \
+            "limite_Boleto FLOAT)")
+    for row in df_users.itertuples(index=False):
+        cursor.execute(
+            "INSERT INTO informacoes_cadastro "\
+            "(id_usuario, id_regiao, saldo, limite_PIX, limite_TED, limite_DOC, limite_Boleto) VALUES "\
+            f"('{row.id_usuario}', '{row.id_regiao}', {row.saldo:.2f}, "\
+            f"{row.limite_PIX:.2f}, {row.limite_TED:.2f}, {row.limite_DOC:.2f}, {row.limite_Boleto:.2f})")
+    con.commit()
     print(f"Tabela 2 salva em: {sql_path}")
+
+    # with open(sql_path, "w") as f:
+    #     f.write(
+    #         "CREATE TABLE IF NOT EXISTS informacoes_cadastro (\n"
+    #         "  id_usuario VARCHAR(36) PRIMARY KEY,\n"
+    #         "  id_regiao VARCHAR(2),\n"
+    #         "  saldo FLOAT,\n"
+    #         "  limite_PIX FLOAT,\n"
+    #         "  limite_TED FLOAT,\n"
+    #         "  limite_DOC FLOAT,\n"
+    #         "  limite_Boleto FLOAT\n"
+    #         ");\n"
+    #     )
+    #     for row in df_users.itertuples(index=False):
+    #         f.write(
+    #             "INSERT INTO informacoes_cadastro "
+    #             "(id_usuario, id_regiao, saldo, limite_PIX, limite_TED, limite_DOC, limite_Boleto) VALUES "
+    #             f"('{row.id_usuario}', '{row.id_regiao}', {row.saldo:.2f}, "
+    #             f"{row.limite_PIX:.2f}, {row.limite_TED:.2f}, {row.limite_DOC:.2f}, {row.limite_Boleto:.2f});\n"
+    #         )
+    # print(f"Tabela 2 salva em: {sql_path}")
 
     df_tx = pd.DataFrame({
         "id_transacao":         [str(uuid.uuid4()) for _ in range(N)],
