@@ -148,7 +148,7 @@ public:
         int pVal    = in->getColumn("valor_transacao")     ->getPosition();
         int pPixLim = in->getColumn("limite_PIX")          ->getPosition();
         int pTedLim = in->getColumn("limite_TED")          ->getPosition();
-        int pCreLim = in->getColumn("limite_CREDITO")          ->getPosition();
+        int pCreLim = in->getColumn("limite_CREDITO")      ->getPosition();
         int pBolLim = in->getColumn("limite_Boleto")       ->getPosition();
         int pApr    = in->getColumn("aprovacao")           ->getPosition();
 
@@ -166,7 +166,9 @@ public:
                 } else if (mod == "TED") {
                     limite = in->getElement<double>(idx, pTedLim);
                 } else if (mod == "Boleto") {
-                     limite = in->getElement<double>(idx, pBolLim);
+                    limite = in->getElement<double>(idx, pBolLim);
+                } else {
+                    limite = in->getElement<double>(idx, pCreLim);
                 }
 
                 // se valor > limite, reprova
@@ -301,9 +303,9 @@ public:
         auto out = outputs[0];         // dfT6
 
         // posições em T1
-        int pTrId = in->getColumn("id_transacao")    ->getPosition();
+        int pTrId = in->getColumn("id_transacao")      ->getPosition();
         int pUser = in->getColumn("id_usuario_pagador")->getPosition();
-        int pVal  = in->getColumn("valor_transacao") ->getPosition();
+        int pVal  = in->getColumn("valor_transacao")   ->getPosition();
 
         std::unordered_map<std::string, std::pair<double,int>> stats;
         for (size_t r = 0; r < in->size(); ++r) {
@@ -374,6 +376,33 @@ public:
         }
     }
 };
+
+
+class T9Transformer final : public Transformer {
+private:
+    std::mutex writeMtx;
+public:
+    void transform(std::vector<DataFramePtr>& outputs,
+                    const std::vector<DataFrameWithIndexes>& inputs) override {
+        if (inputs.size() < 2) return;
+        auto inDF = inputs[0].second;   // T3
+        auto inAprov = inputs[1].second;   // T8
+        auto out     = outputs[0];         // dfT9
+
+        for (int idx : inputs[0].first) {
+            StrRow row = inDF->getRow(idx);
+            std::string aprovT3 = row.back();
+            std::string aprovT8 = inAprov->getRow(idx)[1];
+            
+            row.pop_back();
+            if (row.back() != aprovT8) row.push_back("0");
+        
+            std::lock_guard<std::mutex> lk(writeMtx);
+            out->addRow(row);
+        }
+    }   
+};
+
 
 class PrintTransformer final : public Transformer {
 private:
@@ -459,6 +488,8 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfT7->addColumn<std::string>("id_transacao");
     dfT7->addColumn<double>     ("score_risco");
 
+    auto dfT8 = dfT3->emptyCopy();
+
      //====================Init Triggers===========================//
 
     auto e1 = std::make_shared<Extractor>();
@@ -516,6 +547,11 @@ void testePipelineTransacoes(int nThreads = 2) {
     auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
     t7->addNext(tp7, {1});
 
+    auto t9 = std::make_shared<T9Transformer>();
+    t9->addOutput(dfT9);
+
+    auto tp9 = std::make_shared<PrintTransformer>(">>> T7 outputs");
+    t9->addNext(tp9, {1});
 
     e1->addNext(t1, {1});
     e2->addNext(t1, {1});
