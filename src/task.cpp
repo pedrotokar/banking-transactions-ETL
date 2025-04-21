@@ -309,6 +309,7 @@ void Extractor::producer(std::vector<std::atomic<bool>>& completedList, int tInd
         std::unique_lock<std::mutex> lock(bufferMutex);
         cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
 
+
         // Adiciona o batch de linhas ao buffer
         buffer.push(rows);
 
@@ -321,8 +322,6 @@ void Extractor::producer(std::vector<std::atomic<bool>>& completedList, int tInd
         // Notifica aos consumidores
         cv.notify_all();
     };
-    // Fecha o arquivo e informa que encerrou a produção
-    repository->close();
     endProduction = true;
 
     // Notifica aos consumidores que encerrou a produção
@@ -339,6 +338,7 @@ void Extractor::consumer(std::vector<std::atomic<bool>>& completedList, int tInd
     while (true) {
         std::unique_lock<std::mutex> lock(bufferMutex);
 
+
         // Aguarda até que o buffer não esteja vazio enquanto há produção
         cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
 
@@ -347,6 +347,7 @@ void Extractor::consumer(std::vector<std::atomic<bool>>& completedList, int tInd
 
         // Pega o primeira linha no buffer
         std::string rows = buffer.front();
+
         buffer.pop();
 
         // Converte para string as linhas do repostitório

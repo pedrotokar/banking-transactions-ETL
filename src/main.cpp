@@ -1157,10 +1157,10 @@ int main(int argc, char *argv[]) {
     //testExtractorAndLoader();
     //testeTransformer(3);
     // testeGeralEmap(4);
-    // testeBatch();
-    // testLoaderSQL();
+    testeBatch();
+    testLoaderSQL();
 
-    // testeGeralEmap(1);
+    //testeGeralEmap(1);
 
     testeGeralEmap(10);
 

@@ -373,6 +373,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             );
 
             usedThreads += crrTaskThreadsNum;
+
         }
 
         for (auto it = activeGroups.begin(); it != activeGroups.end(); ) {
@@ -380,6 +381,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
 
             // percorre cada sub‑thread do grupo
             for (size_t i = 0; i < group.threads.size(); ++i) {
+
                 // se terminou e ainda não chamou join()
                 if (!group.joined[i] && group.flags->at(i).load(std::memory_order_acquire)) {
                     if (group.threads[i].joinable()) group.threads[i].join();
