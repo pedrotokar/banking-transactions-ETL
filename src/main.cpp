@@ -1322,6 +1322,109 @@ public:
     }
 };
 
+class T4Transformer final : public Transformer {
+    std::mutex writeMtx;
+public:
+    void transform(std::vector<DataFramePtr>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
+        if (inputs.size() < 2) return;
+        // inputs[0]: extrator E3, inputs[1]: tratador T1
+        auto dfReg = inputs[0].second;   // E3: regiões
+        auto dfT1  = inputs[1].second;   // T1: transações enriquecidas
+        auto out   = outputs[0];         // dfT4
+
+        // --- monta mapa de coordenadas de região (id_regiao → (lat, lon)) ---
+        int pR     = dfReg->getColumn("id_regiao") ->getPosition();
+        int pLat   = dfReg->getColumn("latitude")  ->getPosition();
+        int pLon   = dfReg->getColumn("longitude") ->getPosition();
+
+        std::unordered_map<std::string, std::pair<double,double>> coordMap;
+        for (size_t r = 0; r < dfReg->size(); ++r) {
+            auto rid = dfReg->getElement<std::string>(r, pR);
+            auto lat = dfReg->getElement<double>     (r, pLat);
+            auto lon = dfReg->getElement<double>     (r, pLon);
+            coordMap[rid] = { lat, lon };
+        }
+
+        // --- posições em dfT1 para id, regiões de transação e usuário ---
+        int pTrId = dfT1->getColumn("id_transacao")       ->getPosition();
+        int pRegT = dfT1->getColumn("id_regiao_transacao")->getPosition();
+        int pRegU = dfT1->getColumn("id_regiao_usuario")  ->getPosition();
+
+        // --- para cada índice autorizado, cria a linha de saída ---
+        for (int idx : inputs[1].first) {
+            auto trxId = dfT1->getElement<std::string>(idx, pTrId);
+
+            std::string regT = dfT1->getElement<std::string>(idx, pRegT);
+            std::string regU = dfT1->getElement<std::string>(idx, pRegU);
+
+            double latT = 0, lonT = 0, latU = 0, lonU = 0;
+            if (auto it = coordMap.find(regT); it != coordMap.end()) {
+                latT = it->second.first;
+                lonT = it->second.second;
+            }
+            if (auto it = coordMap.find(regU); it != coordMap.end()) {
+                latU = it->second.first;
+                lonU = it->second.second;
+            }
+
+            std::vector<std::any> row = {
+                trxId,
+                regT,
+                latT,
+                lonT,
+                regU,
+                latU,
+                lonU
+            };
+
+            std::lock_guard<std::mutex> lk(writeMtx);
+            out->addRow(row);
+        }
+    }
+};
+
+class T5Transformer final : public Transformer {
+    std::mutex writeMtx;
+
+public:
+    void transform(std::vector<DataFramePtr>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
+        if (inputs.empty()) return;
+        auto dfT4 = inputs[0].second;   // saída de T4
+        auto out  = outputs[0];         // dfT5
+
+        int pTrId  = dfT4->getColumn("id_transacao")        ->getPosition();
+        int pLatT  = dfT4->getColumn("latitude_transacao")  ->getPosition();
+        int pLonT  = dfT4->getColumn("longitude_transacao") ->getPosition();
+        int pLatU  = dfT4->getColumn("latitude_usuario")    ->getPosition();
+        int pLonU  = dfT4->getColumn("longitude_usuario")   ->getPosition();
+
+        for (int idx : inputs[0].first) {
+            auto trxId = dfT4->getElement<std::string>(idx, pTrId);
+            double latT = dfT4->getElement<double>(idx, pLatT);
+            double lonT = dfT4->getElement<double>(idx, pLonT);
+            double latU = dfT4->getElement<double>(idx, pLatU);
+            double lonU = dfT4->getElement<double>(idx, pLonU);
+
+            double dlat = latT - latU;
+            double dlon = lonT - lonU;
+            double score = std::sqrt(dlat*dlat + dlon*dlon);
+
+            // monta a linha de saída
+            std::vector<std::string> row = {
+                trxId,
+                std::to_string(score)
+            };
+
+            std::lock_guard<std::mutex> lk(writeMtx);
+            out->addRow(row);
+        }
+    }
+};
+
 
 class PrintTransformer final : public Transformer {
 private:
@@ -1360,6 +1463,13 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfE2->addColumn<double>     ("limite_DOC");
     dfE2->addColumn<double>     ("limite_Boleto");
 
+    auto dfE3 = std::make_shared<DataFrame>();
+    dfE3->addColumn<std::string>("id_regiao");                  
+    dfE3->addColumn<double>("latitude");                        
+    dfE3->addColumn<double>("longitude");                       
+    dfE3->addColumn<double>("media_transacional_mensal");       
+    dfE3->addColumn<int>("num_fraudes_ult_30d");                
+    
     auto dfT1 = std::make_shared<DataFrame>();
     dfT1->addColumn<std::string>("id_transacao");
     dfT1->addColumn<std::string>("id_usuario_pagador");
@@ -1377,6 +1487,19 @@ void testePipelineTransacoes(int nThreads = 2) {
 
     auto dfT2 = dfT1->emptyCopy();
     auto dfT3 = dfT2->emptyCopy(); 
+
+    auto dfT4 = std::make_shared<DataFrame>();
+    dfT4->addColumn<std::string>("id_transacao");
+    dfT4->addColumn<std::string>("id_regiao_transacao");
+    dfT4->addColumn<double>     ("latitude_transacao");
+    dfT4->addColumn<double>     ("longitude_transacao");
+    dfT4->addColumn<std::string>("id_regiao_usuario");
+    dfT4->addColumn<double>     ("latitude_usuario");
+    dfT4->addColumn<double>     ("longitude_usuario");
+
+    auto dfT5 = std::make_shared<DataFrame>();
+    dfT5->addColumn<std::string>("id_transacao");
+    dfT5->addColumn<double>     ("score_risco");
 
     auto dfT6 = std::make_shared<DataFrame>();
     dfT6->addColumn<std::string>("id_transacao");
@@ -1396,6 +1519,10 @@ void testePipelineTransacoes(int nThreads = 2) {
     e2->addRepo(new FileRepository("data/informacoes_cadastro_100k.csv", ",", true));
     e2->addOutput(dfE2);
 
+    auto e3 = std::make_shared<Extractor>();
+    e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
+    e3->addOutput(dfE3);
+
     //==================== Construção dos DAG ===========================//
     auto t1 = std::make_shared<T1Transformer>();     
     t1->addOutput(dfT1);
@@ -1412,9 +1539,20 @@ void testePipelineTransacoes(int nThreads = 2) {
     auto t3 = std::make_shared<T3Transformer>();
     t3->addOutput(dfT3);
 
-
     auto tp3 = std::make_shared<PrintTransformer>(">>> T3 outputs");
     t3->addNext(tp3, {1});
+
+    auto t4 = std::make_shared<T4Transformer>();
+    t4->addOutput(dfT4);
+
+    auto tp4 = std::make_shared<PrintTransformer>(">>> T4 outputs");
+    t4->addNext(tp4, {1});
+
+    auto t5 = std::make_shared<T5Transformer>();
+    t5->addOutput(dfT5);
+
+    auto tp5 = std::make_shared<PrintTransformer>(">>> T5 outputs");
+    t5->addNext(tp5, {1}); 
 
     auto t6 = std::make_shared<T6Transformer>();
     t6->addOutput(dfT6);
@@ -1432,16 +1570,23 @@ void testePipelineTransacoes(int nThreads = 2) {
     e1->addNext(t1, {1});
     e2->addNext(t1, {1});
 
+    e3->addNext(t4, {1});
+    t1->addNext(t4, {1});
+
     t1->addNext(t2, {1});
     t2->addNext(t3, {1});
 
     t1->addNext(t6, {1});
     t1->addNext(t7, {1});
 
+    t4->addNext(t5, {1});
+
+
 
     RequestTrigger trigger;
     trigger.addExtractor(e1);
     trigger.addExtractor(e2);
+    trigger.addExtractor(e3);
     trigger.start(nThreads);
 }
 
