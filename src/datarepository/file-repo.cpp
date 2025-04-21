@@ -1,8 +1,9 @@
 
-#include "datarepository.h"
-#include "types.h"
-#include <sstream>
 #include <iostream>
+#include <sstream>
+
+#include "types.h"
+#include "datarepository.h"
 
 FileRepository::FileRepository(const std::string& fname,
                                const std::string& sep,

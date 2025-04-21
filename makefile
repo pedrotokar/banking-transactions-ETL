@@ -2,10 +2,10 @@
 
 SRC_DIR = src
 INCLUDE_DIR = include
-MODULES_DIRS = dataframe
+MODULES_DIRS = dataframe datarepository
 
 CXX = g++
-CXXFLAGS = -Wall -I $(INCLUDE_DIR)
+CXXFLAGS = -Wall -I $(INCLUDE_DIR) 
 
 SRC = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)))
 
@@ -14,7 +14,7 @@ SRC = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(S
 all: build run ## Build and run the project
 
 build: $(SRC) ## Build the project
-	$(CXX) $(CXXFLAGS) -o out $(SRC)
+	$(CXX) $(CXXFLAGS) -o out $(SRC) -lsqlite3 
 
 run: ## Run the project
 	./out

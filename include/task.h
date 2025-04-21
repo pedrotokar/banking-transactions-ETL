@@ -49,27 +49,48 @@ public:
 class Extractor : public Task {
 public:
     virtual ~Extractor() = default;
-    void extract(DataFrame* & output, FileRepository* & repository);
-
+    void extract(int numThreads);
+    void addOutput(DataFrame* outputDF);
     void addRepo(FileRepository* repo){ repository = repo;};
 
     void execute();
 private:
     FileRepository* repository;
+    DataFrame* dfOutput;
+
+    std::queue<StrRow> buffer;
+    std::mutex bufferMutex;
+    std::mutex dfMutex;
+    std::condition_variable cv;
+    std::atomic<bool> endProduction;
+
+    void producer();
+    void consumer();
 };
 
 class Loader : public Task {
 public:
     virtual ~Loader() = default;
-    void createRepo(DataFrame* & dfInput, FileRepository* & repository);
-    void actualizeRepo(DataFrame* & dfInput, FileRepository* & repository);
-    void addRows(DataFrame* & dfInput, FileRepository* & repository);
+    void createRepo(int numThreads);
+    void actualizeRepo(int numThreads);
+    void addRows(int numThreads);
 
     void addRepo(FileRepository* repo){ repository = repo;};
 
     void execute();
 private:
     FileRepository* repository;
+    DataFrame* dfInput;
+    void getInput();
+
+    std::queue<StrRow> buffer;
+    std::mutex bufferMutex;
+    std::mutex repoMutex;
+    std::condition_variable cv;
+    std::atomic<bool> endProduction;
+
+    void producer();
+    void consumer();
 };
 
 #endif

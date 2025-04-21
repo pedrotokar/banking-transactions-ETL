@@ -11,6 +11,9 @@
 #include <stdexcept>
 #include <memory>
 #include <limits>
+#include <iostream>
+
+#include <sqlite3.h>
 
 #include "types.h"
 
@@ -20,16 +23,19 @@ class DataRepository {
 public:
     virtual ~DataRepository() = default;
 
-    virtual DataRow getRow() = 0;
-    /// TODO: REVIEW parseRow() RETURN IMPLEMENTATION;
-    // virtual WildRow parseRow(const DataRow& line) const = 0;
+    virtual std::string getRow() = 0;
+    virtual std::string getBatch() = 0;
 
-    virtual void appendRow(const DataRow& data) = 0;
+    virtual void appendRow(const std::string& data) = 0;
     virtual void appendRow(const std::vector<std::string>& data) = 0;
 
     virtual void resetReader() {};
     virtual size_t lineCount() const { return 0; };
+
+    virtual void clear() {};
+    virtual void close() {};
 };
+
 
 class FileRepository : public DataRepository {
 private:
@@ -56,8 +62,8 @@ public:
     
     ~FileRepository() override;
 
-    DataRow getRow() override;
-    std::string getBatch();
+    std::string getRow() override;
+    std::string getBatch() override;
 
     void appendRow(const DataRow& data) override;
     void appendRow(const std::vector<std::string>& data) override;
@@ -73,4 +79,52 @@ public:
     bool hasNext() const { return hasNextLine; }
 };
 
+
+class SQLiteRepository { 
+private:
+    sqlite3* db;
+    sqlite3_stmt* stmt;
+
+    std::string dbPath;
+    std::string tableName;
+
+    size_t nCols;
+
+    std::string selectQuery;
+    std::string insertQuery;
+
+    size_t batchSize = 1000;
+    bool done = false;
+
+    void checkTable() {
+        if (tableName.empty()) 
+            throw std::runtime_error("You must set or create a table first.");
+    }
+public:
+    SQLiteRepository(const std::string& dbPath);
+    ~SQLiteRepository();
+
+    void open();
+
+    void prepareSelect();
+
+    void setTable(const std::string& tableName);
+    void createTable(const std::string& tableName, const std::string& schema);
+
+    std::string getRow();
+    std::string getBatch();
+
+    void appendStr(const std::string& data);
+    void appendRow(const std::vector<std::string>& data);
+    void appendHeader(const std::vector<std::string>& data);
+    void appendBatch(const std::vector<StrRow>& data);
+
+    StrRow parseRow(const std::string& row) const;
+    std::vector<StrRow> parseBatch(const std::string& batch);
+    
+    void resetReader();
+    void clear();
+    void close();
+};
+    
 #endif // DATAREPOSITORY_H
