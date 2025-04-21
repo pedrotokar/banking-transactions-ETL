@@ -301,8 +301,8 @@ void testExtractorAndLoader(int nThreads = 2) {
     df_sql->addColumn<int>("INTEIRO");
     df_sql->addColumn<double>("FLOAT");
 
-    auto e0 = std::make_shared<Extractor>();
-    auto e1 = std::make_shared<Extractor>();
+    auto e0 = std::make_shared<ExtractorFile>();
+    auto e1 = std::make_shared<ExtractorSQLite>();
 
     e0->addOutput(df);
     e0->addRepo(repository);
@@ -310,23 +310,69 @@ void testExtractorAndLoader(int nThreads = 2) {
     e1->addOutput(df_sql);
     e1->addRepo(sqliteRepository);
 
-    auto l0 = std::make_shared<Loader>();
-    auto l1 = std::make_shared<Loader>();
+    auto l0 = std::make_shared<LoaderFile>();
+    auto l1 = std::make_shared<LoaderFile>();
 
     e0->addNext(l0, {1});
     e1->addNext(l1, {1});
 
-    FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
+    FileRepository* outputRepository = new FileRepository("data/mock_emap.csv", ",", true);
     l0->addRepo(outputRepository);
 
     
-    FileRepository* out_sql = new FileRepository("teste_sql.csv", ",", true);
+    FileRepository* out_sql = new FileRepository("data/output_teste_sql.csv", ",", true);
     l1->addRepo(out_sql);
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
     trigger.addExtractor(e1);
 
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
+    std::cout << "\nStartando trigger...\n";
+    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n" << std::endl;
+}
+
+void testLoaderSQL(int nThreads = 2) {
+    std::shared_ptr<DataFrame> df_sql = std::make_shared<DataFrame>();
+    SQLiteRepository* sqliteRepository = new SQLiteRepository("data/teste_sql.db");
+    sqliteRepository->setTable("sql_table");
+
+
+    df_sql->addColumn<std::string>("TEXTO");
+    df_sql->addColumn<int>("INTEIRO");
+    df_sql->addColumn<double>("FLOAT");
+
+    auto e0 = std::make_shared<ExtractorSQLite>();
+    auto e1 = std::make_shared<ExtractorSQLite>();
+
+    e0->addOutput(df_sql);
+    e0->addRepo(sqliteRepository);
+
+    e1->addOutput(df_sql);
+    e1->addRepo(sqliteRepository);
+
+    auto l0 = std::make_shared<LoaderSQLite>();
+    auto l1 = std::make_shared<LoaderFile>();
+
+    e0->addNext(l0, {1});
+    e1->addNext(l1, {1});
+
+    SQLiteRepository* out_sqlite = new SQLiteRepository("data/output_teste_sql.db");
+    // out_sqlite->setTable("teste");
+    out_sqlite->createTable("teste", "NAME TEXT,"
+                                "ID INTEGER,"
+                                "AGE REAL");
+
+    l0->addRepo(out_sqlite);
+
+    FileRepository* outputRepository = new FileRepository("data/output_teste_sql.csv", ",", true);
+    l1->addRepo(outputRepository);
+
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
     //================================================//
     // Inicialização do trigger e execução da pipeline//
     //================================================//
@@ -600,7 +646,6 @@ public:
     }
 };
 
-
 class SalarySumTransformer : public Transformer {
 private:
     std::mutex salarySumMutex;
@@ -820,7 +865,7 @@ void testeGeralEmap(int nThreads = 1){
     //             Definições de cada bloco           //
     //================================================//
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
-    auto e0 = std::make_shared<Extractor>();
+    auto e0 = std::make_shared<ExtractorFile>();
     e0->addOutput(dfOutE);
     e0->addRepo(inputRepository);
 
@@ -848,19 +893,19 @@ void testeGeralEmap(int nThreads = 1){
     t3->addOutput(dfOut3);
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
-    auto l0 = std::make_shared<Loader>();
+    auto l0 = std::make_shared<LoaderFile>();
     l0->addRepo(outputRepositoryFilter);
 
     FileRepository* outputRepositoryAges = new FileRepository("data/output_emap_age.csv", ",", true);
-    auto l1 = std::make_shared<Loader>();
+    auto l1 = std::make_shared<LoaderFile>();
     l1->addRepo(outputRepositoryAges);
 
     FileRepository* outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
-    auto l2 = std::make_shared<Loader>();
+    auto l2 = std::make_shared<LoaderFile>();
     l2->addRepo(outputRepositorySalary);
 
     FileRepository* outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
-    auto l3 = std::make_shared<Loader>();
+    auto l3 = std::make_shared<LoaderFile>();
     l3->addRepo(outputRepositoryMean);
 
     //================================================//
@@ -986,7 +1031,7 @@ void testeTransformer(int nThreads = 1){
     //             Definições de cada bloco           //
     //================================================//
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
-    auto e0 = std::make_shared<Extractor>();
+    auto e0 = std::make_shared<ExtractorFile>();
     e0->addOutput(dfOutE);
     e0->addRepo(inputRepository);
 
@@ -1037,7 +1082,6 @@ void testeTransformer(int nThreads = 1){
     //    cout << "t3 dataframe after running:\n" << dfOut3->toString() << endl;
 
 }
-
 
 void testeBatch() {
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
@@ -1099,7 +1143,8 @@ int main(int argc, char *argv[]) {
     // testExtractorAndLoader();
     //testeTransformer(3);
     testeGeralEmap(4);
-
+    // testeBatch();
+    // testLoaderSQL();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;

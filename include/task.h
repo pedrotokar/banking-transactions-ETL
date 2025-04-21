@@ -92,8 +92,8 @@ public:
     void addRepo(DataRepository* repo){ repository = repo;};
 
     //Implementação específica do extractor para o execute
-    void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+    virtual void executeMonoThread() override;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
@@ -115,6 +115,23 @@ private:
     void consumer();
 };
 
+class ExtractorFile : public Extractor {
+public:
+    virtual ~ExtractorFile() = default;
+
+private:
+    FileRepository* repository;
+};
+
+class ExtractorSQLite : public Extractor {
+public:
+    virtual ~ExtractorSQLite() = default;
+    
+private:
+    SQLiteRepository* repository;
+};
+
+
 class Loader : public Task {
 public:
     Loader(): repoMutex(), inputIndex(0) {};
@@ -123,8 +140,8 @@ public:
     void addRepo(DataRepository* repo){ repository = repo;};
 
     //Implementação específica do loader para o execute
-    void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+    virtual void executeMonoThread() override;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void finishExecution() override;
@@ -138,6 +155,22 @@ private:
 
     void addRows(DataFrameWithIndexes pair);
     void updateRepo(int numThreads);
+};
+
+class LoaderFile : public Loader {
+public: 
+    virtual ~LoaderFile() = default;
+
+private:
+    FileRepository* repository;
+};
+    
+class LoaderSQLite : public Loader {
+public: 
+    virtual ~LoaderSQLite() = default;
+
+private:
+    SQLiteRepository* repository;
 };
 
 #endif
