@@ -23,10 +23,12 @@ public:
     void addNext(std::shared_ptr<Task> nextTask, std::vector<bool> splitDFs);
     void addPrevious(std::shared_ptr<Task> previousTask, std::vector<bool> splitDFs);
     void addOutput(std::shared_ptr<DataFrame> outputDF);
+    void blockParallel(){blockMultiThreading = true;};
     //Getters das saídas e relacionamentos
     const std::vector<std::shared_ptr<Task>>& getNextTasks();
     const std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>>& getPreviousTasks();
     const std::vector<std::shared_ptr<DataFrame>>& getOutputs();
+    const bool canBeParallel();
     //Funções para gerenciar as pendencias antes de executar a task
     void incrementExecutedPreviousTasks();
     const bool checkPreviousTasks() const;
@@ -37,24 +39,50 @@ public:
     //o primeiro deve simplesmente executar sem mexer em nenhuma interface de threading
     virtual void executeMonoThread() {};
     //e o segundo deverá enfileirar threads para trabalhar e retornar elas
-    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) = 0;
-
-    //método abstrato para gerenciar o uso dos dataframes de saída da task
+    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) = 0;
+    //método abstrato para gerenciar o uso dos dataframes de saída da task (chamado por tasks posteriores)
     virtual void decreaseConsumingCounter() {};
-
     //método abstrato que faz devidas limpezas após o final do funcionamento do bloco
     virtual void finishExecution() {};
 
+    // Heurística para decidir o número de threads
+    void setWeight(int w);
+    int getWeight() const;
+    
+    void setRecomendedThreadsNum(size_t numThreads);
+    size_t getRecomendedThreadsNum() const;
+    
+    void setAuxOrquestrador(int val);
+    void incrementAuxOrquestrador();
+    int getAuxOrquestrador() const;
+    
+    void setTaskName(const std::string name);
+    std::string getTaskName() const;
+
+    void setLevel(int newLevel);
+    int getLevel() const;
 protected:
     //Vetores com as saídas e relacionamentos
     std::vector<std::shared_ptr<Task>> nextTasks;
     std::vector<std::shared_ptr<DataFrame>> outputDFs;
     std::vector<std::pair<std::shared_ptr<Task>, std::vector<bool>>> previousTasks;
+    bool blockMultiThreading = false;
     //Contador de tasks a seguir usando os dataframes de saída
     int tasksConsumingOutput = 0;
     //Contador de tasks anteriores pendentes de execução
     size_t cntExecutedPreviousTasks = 0;
 
+    //Heurista para decidir numero de threads
+    size_t recomendedThreadsNum = 0;
+    int weight = 0;
+    int auxOrquestrador = 0;
+    std::string taskName = "";
+    int taskLevel = 0;
+
+    //Função auxiliar para retornar uma thread executando a operação versão monothread do bloco
+    void executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 class Transformer : public Task {
@@ -68,15 +96,22 @@ public:
 
     //Implementação específica do transformer para o executes
     void executeMonoThread() override;
-    std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+    std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
     void finishExecution() override;
 
 private:
-    //Métodos privados para facilitar o gerenciamento do que fazer
-    std::vector<std::thread> executeWithThreading(int numThreads);
+    //Método privado para facilitar o gerenciamento do que fazer
+    std::vector<std::thread> executeWithThreading(int numThreads, std::vector<std::atomic<bool>>& completedList,
+                                                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
+    //Wrapper que chama a função definida do usuário e faz limpezas de thread depois
+    void transformThread(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                         const std::vector<DataFrameWithIndexes>& inputs,
+                         std::vector<std::atomic<bool>>& completedList, int tIndex,
+                         std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 
 protected:
     std::mutex consumingCounterMutex;
@@ -87,13 +122,15 @@ class Extractor : public Task {
 public:
     Extractor(): buffer(), bufferMutex(), dfMutex(), consumingCounterMutex(), cv(), endProduction(false) {};
     virtual ~Extractor() = default;
-
+    //addOUtput especial pro extractor
     void addOutput(std::shared_ptr<DataFrame> outputDF);
+    //Setter específico do extractor
     void addRepo(DataRepository* repo){ repository = repo;};
 
     //Implementação específica do extractor para o execute
     virtual void executeMonoThread() override;
-    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
@@ -110,9 +147,11 @@ private:
     std::mutex consumingCounterMutex;
     std::condition_variable cv;
     std::atomic<bool> endProduction;
-
-    void producer();
-    void consumer();
+    //Funções para execução com multithreading
+    void producer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
+    void consumer(std::vector<std::atomic<bool>>& completedList, int tIndex,
+                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 class ExtractorFile : public Extractor {
@@ -137,11 +176,13 @@ public:
     Loader(): repoMutex(), inputIndex(0) {};
     virtual ~Loader() = default;
 
+    //Setter específico do loader
     void addRepo(DataRepository* repo){ repository = repo;};
 
     //Implementação específica do loader para o execute
     virtual void executeMonoThread() override;
-    virtual std::vector<std::thread> executeMultiThread(int numThreads = 1) override;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
 
     //Implementação específica para os métodos de pós execução e contagem
     void finishExecution() override;
@@ -153,8 +194,10 @@ private:
     std::mutex repoMutex;
     int inputIndex;
 
-    void addRows(DataFrameWithIndexes pair);
     void updateRepo(int numThreads);
+
+    void addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex,
+                 std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
 };
 
 class LoaderFile : public Loader {
