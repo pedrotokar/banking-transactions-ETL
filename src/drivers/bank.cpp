@@ -375,6 +375,94 @@ public:
     }
 };
 
+
+class T8Transformer final : public Transformer {
+    std::mutex writeMtx;
+
+public:
+    // inputs:
+    //   [0] = T6 (score_valor)
+    //   [1] = T7 (score_horario)
+    //   [2] = T5 (score_regiao)
+    // outputs:
+    //   [0] = main: (id_transacao, score_valor, score_horario, score_regiao, aprovacao)
+    //   [1] = valor: (score_valor, aprovacao)
+    //   [2] = horario: (score_horario, aprovacao)
+    //   [3] = regiao: (score_regiao, aprovacao)
+    void transform(std::vector<DataFramePtr>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
+        if (inputs.size() < 3) return;
+        auto dfVal = inputs[0].second;
+        auto dfHor = inputs[1].second;
+        auto dfReg = inputs[2].second;
+
+        // 1) calcula mediana dos somatórios
+        std::vector<double> totals;
+        totals.reserve(dfVal->size());
+        int pScoreV = dfVal->getColumn("score_risco")->getPosition();
+        int pScoreH = dfHor->getColumn("score_risco")->getPosition();
+        int pScoreR = dfReg->getColumn("score_risco")->getPosition();
+        for (size_t i = 0; i < dfVal->size(); ++i) {
+            totals.push_back(
+                dfVal->getElement<double>(i, pScoreV)
+              + dfHor->getElement<double>(i, pScoreH)
+              + dfReg->getElement<double>(i, pScoreR)
+            );
+        }
+        std::sort(totals.begin(), totals.end());
+        double tau = 0.0;
+        size_t n = totals.size();
+        if (n > 0) {
+            tau = (n % 2 == 1)
+                  ? totals[n/2]
+                  : (totals[n/2 - 1] + totals[n/2]) / 2.0;
+        }
+
+        // 2) posições e ponteiros de saída
+        int pId      = dfVal->getColumn("id_transacao")->getPosition();
+        auto outMain = outputs[0];
+        auto outVal  = outputs[1];
+        auto outHor  = outputs[2];
+        auto outReg  = outputs[3];
+
+        for (int idx : inputs[0].first) {
+            auto trxId   = dfVal->getElement<std::string>(idx, pId);
+            double sV    = dfVal->getElement<double>(idx, pScoreV);
+            double sH    = dfHor->getElement<double>(idx, pScoreH);
+            double sR    = dfReg->getElement<double>(idx, pScoreR);
+            double total = sV + sH + sR;
+            int aprov    = (total > tau) ? 1 : 0;
+
+            {
+                std::vector<std::any> row = { trxId, sV, sH, sR, aprov };
+                std::lock_guard<std::mutex> lk(writeMtx);
+                outMain->addRow(row);
+            }
+            // — L3:  score_valor + aprovação
+            {
+                std::vector<std::any> row = { sV, aprov };
+                std::lock_guard<std::mutex> lk(writeMtx);
+                outVal->addRow(row);
+            }
+            // — L4:  score_horario + aprovação
+            {
+                std::vector<std::any> row = { sH, aprov };
+                std::lock_guard<std::mutex> lk(writeMtx);
+                outHor->addRow(row);
+            }
+            // — L5:  score_regiao + aprovação
+            {
+                std::vector<std::any> row = { sR, aprov };
+                std::lock_guard<std::mutex> lk(writeMtx);
+                outReg->addRow(row);
+            }
+        }
+    }
+};
+
+
+
 class PrintTransformer final : public Transformer {
 private:
     std::string message;
@@ -459,6 +547,27 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfT7->addColumn<std::string>("id_transacao");
     dfT7->addColumn<double>     ("score_risco");
 
+    auto dfT8Main = std::make_shared<DataFrame>();
+    dfT8Main->addColumn<std::string>("id_transacao");
+    dfT8Main->addColumn<double>     ("score_valor");
+    dfT8Main->addColumn<double>     ("score_horario");
+    dfT8Main->addColumn<double>     ("score_regiao");
+    dfT8Main->addColumn<int>        ("aprovacao");
+
+    auto dfT8Val = std::make_shared<DataFrame>();
+    dfT8Val->addColumn<double>("score_valor");
+    dfT8Val->addColumn<int>   ("aprovacao");
+
+    auto dfT8Hor = std::make_shared<DataFrame>();
+    dfT8Hor->addColumn<double>("score_horario");
+    dfT8Hor->addColumn<int>   ("aprovacao");
+
+    auto dfT8Reg = std::make_shared<DataFrame>();
+    dfT8Reg->addColumn<double>("score_regiao");
+    dfT8Reg->addColumn<int>   ("aprovacao");
+
+
+
      //====================Init Triggers===========================//
 
     auto e1 = std::make_shared<Extractor>();
@@ -516,6 +625,22 @@ void testePipelineTransacoes(int nThreads = 2) {
     auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
     t7->addNext(tp7, {1});
 
+    auto t8 = std::make_shared<T8Transformer>();
+    t8->addOutput(dfT8Main);
+    t8->addOutput(dfT8Val);
+    t8->addOutput(dfT8Hor);
+    t8->addOutput(dfT8Reg);
+
+    
+    auto l6 = std::make_shared<Loader>();
+    l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
+
+    auto l3 = std::make_shared<Loader>();
+    l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", true));
+    auto l4 = std::make_shared<Loader>();
+    l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
+    auto l5 = std::make_shared<Loader>();
+    l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
 
     e1->addNext(t1, {1});
     e2->addNext(t1, {1});
@@ -531,7 +656,16 @@ void testePipelineTransacoes(int nThreads = 2) {
 
     t4->addNext(t5, {1});
 
+    t3->addNext(l6, {1});
 
+    t5->addNext(t8, {1});  
+    t6->addNext(t8, {1});  
+    t7->addNext(t8, {1});  
+
+    t8->addNext(l3, {0,1,0,0}); 
+    t8->addNext(l4, {0,0,1,0}); 
+    t8->addNext(l5, {0,0,0,1});
+    
 
     RequestTrigger trigger;
     trigger.addExtractor(e1);
