@@ -1183,6 +1183,7 @@ public:
 };
 
 
+
 class T7Transformer final : public Transformer {
     std::mutex writeMtx;
 public:
@@ -1197,11 +1198,11 @@ public:
 
         for (int idx : inputs[0].first) {
             const std::string& ts = in->getElement<std::string>(idx, pDate);
-            if (ts.size() < 19) continue;               
+            if (ts.size() < 19) continue;
             std::string hourStr = ts.substr(11, 2);
             if (!std::isdigit(hourStr[0]) || !std::isdigit(hourStr[1])) continue;
             int hour = std::stoi(hourStr);
-            double score = std::abs(hour - 12) / 12.0;   
+            double score = std::abs(hour - 12) / 12.0;
 
             std::vector<std::any> row = {
                 in->getElement<std::string>(idx, pTr), score
@@ -1212,66 +1213,89 @@ public:
     }
 };
 
-void testePipelineTransacoes(int nThreads = 4) {
+class PrintTransformer final : public Transformer {
+private:
+    std::string message;
+public:
+    PrintTransformer(std::string m = ""): message(m) {};
+    void transform(std::vector<DataFramePtr>& outputs,
+                   const std::vector<DataFrameWithIndexes>& inputs) override
+    {
+        std:: cout << message << std::endl;
+        for(auto pair: inputs){
+            std::cout << pair.second.get() << std::endl;
+            std::cout << pair.second->toString() << std::endl;
+        }
+    }
+};
+
+void testePipelineTransacoes(int nThreads = 2) {
     std::cout << "[PIPELINE] Iniciando com " << nThreads << " thread(s)...\n";
 
-    DataFramePtr dfT1 = std::make_shared<DataFrame>();
-    dfT1->addColumn<std::string>("id_transacao");
-    dfT1->addColumn<std::string>("id_usuario_pagador");
-    dfT1->addColumn<std::string>("id_usuario_recebedor");
-    dfT1->addColumn<int>        ("id_regiao");
-    dfT1->addColumn<std::string>("modalidade_pagamento");
-    dfT1->addColumn<std::string>("data_horario");
-    dfT1->addColumn<double>     ("valor_transacao");
+    DataFramePtr dfOutE1 = std::make_shared<DataFrame>();
+    dfOutE1->addColumn<std::string>("id_transacao");
+    dfOutE1->addColumn<std::string>("id_usuario_pagador");
+    dfOutE1->addColumn<std::string>("id_usuario_recebedor");
+    dfOutE1->addColumn<std::string>("id_regiao");
+    dfOutE1->addColumn<std::string>("modalidade_pagamento");
+    dfOutE1->addColumn<std::string>("data_horario");
+    dfOutE1->addColumn<double>     ("valor_transacao");
 
+    // DataFramePtr dfSaldos = std::make_shared<DataFrame>();
+    // dfSaldos->addColumn<std::string>("id_usuario");
+    // dfSaldos->addColumn<double>     ("saldo_atual");
+    //
+    // DataFramePtr dfUsuarioRegiao = std::make_shared<DataFrame>();
+    // dfUsuarioRegiao->addColumn<std::string>("id_usuario");
+    // dfUsuarioRegiao->addColumn<int>        ("id_regiao_usuario");
+    //
+    // auto eSaldos = std::make_shared<Extractor>();
+    // eSaldos->addRepo(new FileRepository("saldos.csv", ",", true));
+    // eSaldos->addOutput(dfSaldos);
+    //
+    // auto eUserReg = std::make_shared<Extractor>();
+    // eUserReg->addRepo(new FileRepository("usuario_regiao.csv", ",", true));
+    // eUserReg->addOutput(dfUsuarioRegiao);
+    //
+    // DataFramePtr dfT2 = dfT1->emptyCopy();
+    // dfT2->addColumn<int>("aprovacao", -1,0);
+    //
+    // DataFramePtr dfT4 = std::make_shared<DataFrame>();
+    // dfT4->addColumn<std::string>("id_transacao");
+    // dfT4->addColumn<std::string>("id_usuario_pagador");
+    // dfT4->addColumn<int>        ("id_regiao_transacao");
+    // dfT4->addColumn<double>     ("latitude_transacao");
+    // dfT4->addColumn<double>     ("longitude_transacao");
+    // dfT4->addColumn<int>        ("id_regiao_usuario");
+    // dfT4->addColumn<double>     ("latitude_usuario");
+    // dfT4->addColumn<double>     ("longitude_usuario");
+    //
+    //
+    // DataFramePtr dfT7 = std::make_shared<DataFrame>();
+    // dfT7->addColumn<std::string>("id_transacao");
+    // dfT7->addColumn<double>("time_score");
+    //
+    DataFramePtr dfOutE3 = std::make_shared<DataFrame>();
+    dfOutE3->addColumn<std::string>("id_regiao");
+    dfOutE3->addColumn<double>     ("latitude");
+    dfOutE3->addColumn<double>     ("longitude");
+    dfOutE3->addColumn<double>     ("media_transacional_mensal");
+    dfOutE3->addColumn<int>        ("num_fraudes_ult_30d");
 
-    DataFramePtr dfSaldos = std::make_shared<DataFrame>();
-    dfSaldos->addColumn<std::string>("id_usuario");      
-    dfSaldos->addColumn<double>     ("saldo_atual");      
-
-    DataFramePtr dfUsuarioRegiao = std::make_shared<DataFrame>();
-    dfUsuarioRegiao->addColumn<std::string>("id_usuario");
-    dfUsuarioRegiao->addColumn<int>        ("id_regiao_usuario");
-
-    auto eSaldos = std::make_shared<Extractor>();
-    eSaldos->addRepo(new FileRepository("saldos.csv", ",", true));
-    eSaldos->addOutput(dfSaldos);
-
-    auto eUserReg = std::make_shared<Extractor>();
-    eUserReg->addRepo(new FileRepository("usuario_regiao.csv", ",", true));
-    eUserReg->addOutput(dfUsuarioRegiao);
-
-    DataFramePtr dfT2 = dfT1->emptyCopy();
-    dfT2->addColumn<int>("aprovacao", -1,0);
-
-    DataFramePtr dfT4 = std::make_shared<DataFrame>();
-    dfT4->addColumn<std::string>("id_transacao");
-    dfT4->addColumn<std::string>("id_usuario_pagador");
-    dfT4->addColumn<int>        ("id_regiao_transacao");
-    dfT4->addColumn<double>     ("latitude_transacao");
-    dfT4->addColumn<double>     ("longitude_transacao");
-    dfT4->addColumn<int>        ("id_regiao_usuario");
-    dfT4->addColumn<double>     ("latitude_usuario");
-    dfT4->addColumn<double>     ("longitude_usuario");
-
-
-    DataFramePtr dfT7 = std::make_shared<DataFrame>();
-    dfT7->addColumn<std::string>("id_transacao");
-    dfT7->addColumn<double>("time_score");
-
-    DataFramePtr dfRegioes = std::make_shared<DataFrame>();
-    dfRegioes->addColumn<int>   ("id_regiao");
-    dfRegioes->addColumn<double>("latitude");
-    dfRegioes->addColumn<double>("longitude");
-    dfRegioes->addColumn<double>("media_transacional_mensal");
-    dfRegioes->addColumn<int>   ("num_fraudes_ult_30d");
-
-
+    auto tp1 = std::make_shared<PrintTransformer>("------- Printing output e0");
+    auto tp2 = std::make_shared<PrintTransformer>("------- Printing output e3");
 
     auto e0 = std::make_shared<Extractor>();
-    e0->addRepo(new FileRepository("transacoes_100k.csv", ",", true));
-    e0->addOutput(dfT1);
+    e0->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
+    e0->addOutput(dfOutE1);
 
+    auto e3 = std::make_shared<Extractor>();
+    e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
+    e3->addOutput(dfOutE3);
+
+    e0->addNext(tp1, {1});
+    e3->addNext(tp2, {1});
+/*
     auto e3 = std::make_shared<Extractor>();
     e3->addRepo(new FileRepository("regioes_estados_brasil.csv", ",", true));
     e3->addOutput(dfRegioes);
@@ -1285,11 +1309,12 @@ void testePipelineTransacoes(int nThreads = 4) {
 
     e0->addNext(t4, {1});         
     e3->addNext(t4, {1});        
-    eUserReg->addNext(t4, {1});  
+    eUserReg->addNext(t4, {1});  */
 
     RequestTrigger trigger;
     trigger.addExtractor(e0);
     trigger.addExtractor(e3);
+    // trigger.addExtractor(e3);
     trigger.start(nThreads);
 
 
@@ -1299,9 +1324,10 @@ void testePipelineTransacoes(int nThreads = 4) {
     };
 
     std::cout << "[PIPELINE] Finalizado.\n";
-    std::cout << "dfT2 (" << dfT2->size() << ") linhas:\n"; safePreview(dfT2);
-    std::cout << "dfT4 (" << dfT4->size() << ") linhas:\n"; safePreview(dfT4);
-    std::cout << "dfT7 (" << dfT7->size() << ") linhas:\n"; safePreview(dfT7);
+    //Printar eles não adianta, internamente os tratadores tem cópias próprias que vão sendo substituídas
+    // std::cout << "dfT2 (" << dfT2->size() << ") linhas:\n"; safePreview(dfT2);
+    // std::cout << "dfT4 (" << dfT4->size() << ") linhas:\n"; safePreview(dfT4);
+    // std::cout << "dfT7 (" << dfT7->size() << ") linhas:\n"; safePreview(dfT7);
 }
 
 int main() {

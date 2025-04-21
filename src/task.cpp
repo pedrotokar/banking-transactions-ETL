@@ -200,6 +200,7 @@ void Extractor::decreaseConsumingCounter(){
 void Extractor::executeMonoThread(){
     std::cout << "Executando extrator sem paralelizar" << std::endl;
     // Percorre toda a base de dados
+    int i = 0;
     while (true) {
         // Pega cada linha
         DataRow row = repository->getRow();
@@ -211,6 +212,9 @@ void Extractor::executeMonoThread(){
         StrRow parsedRow = repository->parseRow(row);
         // Adicina a linha processada no DF de output
         dfOutput->addRow(parsedRow);
+        if(i == 0){
+            i = 1;
+        }
     };
 }
 
