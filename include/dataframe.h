@@ -70,6 +70,12 @@ public:
         data.push_back(fromString<T>(value));
     }
 
+    void setValue(size_t index, T value) {
+        if(index < size()){
+            data[index] = value;
+        }
+    }
+
     std::string getValue(size_t index) const override;
     size_t size() const override;
     
@@ -109,6 +115,8 @@ public:
 
     template <typename T>
     T getElement(size_t rowIdx, size_t colIdx) const;
+    template <typename T>
+    void setElement(size_t rowIdx, size_t colIdx, T element) const;
 
     void addRow(const std::vector<std::any> &row);
     void addRow(const std::vector<std::string> &row);
@@ -181,6 +189,15 @@ const std::vector<T>& DataFrame::getColumnData(size_t index) const {
 template <typename T>
 T DataFrame::getElement(size_t rowIdx, size_t colIdx) const {
     return getColumnData<T>(colIdx).at(rowIdx);
+}
+
+template <typename T>
+void DataFrame::setElement(size_t rowIdx, size_t colIdx, T element) const {
+    auto col = std::dynamic_pointer_cast<Column<T>>(columns[colIdx]);
+    if (!col) {
+        throw std::bad_cast();
+    }
+    col->setValue(rowIdx, element);
 }
 
 /// TODO: melhorar verificação das posições

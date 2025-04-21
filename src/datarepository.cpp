@@ -2,6 +2,7 @@
 #include "datarepository.h"
 #include "types.h"
 #include <sstream>
+#include <iostream>
 
 FileRepository::FileRepository(const std::string& fname,
                                const std::string& sep,
@@ -12,27 +13,32 @@ FileRepository::FileRepository(const std::string& fname,
                                  currentReadLine(0),
                                  totalLines(0) {
 
-    file.open(fileName, std::ios::out | std::ios::in | std::ios::app); 
-    if (!file.is_open()) {
+    buffer.resize(chunkSize);
+    outFile.open(fileName, std::ios::app | std::ios::out);
+    inFile.open(fileName);
+    if (!inFile.is_open() || !outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
     if (hasHeader) {
-        std::getline(file, currLine);
+        std::getline(inFile, currLine);
     }
 }
 
 FileRepository::~FileRepository() {
-    if (file.is_open()) {
-        file.close();
+    if (inFile.is_open()) {
+        inFile.close();
+    }
+    if (outFile.is_open()) {
+        outFile.close();
     }
 }
 
 DataRow FileRepository::getRow() {
-    if (!file.is_open()) {
+    if (!inFile.is_open()) {
         throw std::runtime_error("File not open: " + fileName);
     }
 
-    if (std::getline(file, currLine)) {
+    if (std::getline(inFile, currLine)) {
         currentReadLine++;
         return currLine;
     } else {
@@ -41,44 +47,50 @@ DataRow FileRepository::getRow() {
     }
 }
 
+std::string FileRepository::getBatch() {
+    std::string leftover;
+
+    size_t startPos = inFile.tellg();
+    inFile.read(buffer.data(), chunkSize);
+    size_t bytesRead = inFile.gcount();
+
+    if (bytesRead == 0) { hasNextLine = false; return ""; }
+
+    std::string chunkData = std::string(buffer.data(), bytesRead);
+
+    size_t newlinePos = chunkData.find_last_of('\n');
+    if (newlinePos != std::string::npos) {
+        chunkData = chunkData.substr(0, newlinePos+1);
+        inFile.seekg(startPos + newlinePos + 1);
+    } else {
+        inFile.seekg(startPos + bytesRead);
+    }
+
+    // buffer.clear();
+    return chunkData;
+}
+
 void FileRepository::appendRow(const DataRow& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    if (!outputFile.is_open()) {
+    if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    outputFile << data << "\n";
+    outFile << data << "\n";
 }
 
 void FileRepository::appendRow(const std::vector<std::string>& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    std::string dataStr;
-    std::ostringstream oss;
-    for (size_t i=0; i < data.size(); ++i) {
-        if (i) {
-            oss << ",";
-        }
-        oss << data[i];
-    }
-    if (!outputFile.is_open()) {
+    if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
-    outputFile << "\n" << oss.str();
+    // outFile.clear(); 
+    for (size_t i=0; i < data.size(); ++i) {
+        if (i)  outFile << ",";
+        outFile << data[i];
+    }
+    outFile << "\n";
 }
 
 void FileRepository::appendHeader(const std::vector<std::string>& data) {
-    std::ofstream outputFile(fileName, std::ios::app);
-    std::string dataStr;
-    std::ostringstream oss;
-    for (size_t i=0; i < data.size(); ++i) {
-        if (i) {
-            oss << ",";
-        }
-        oss << data[i];
-    }
-    if (!outputFile.is_open()) {
-        throw std::runtime_error("Failed opening file: " + fileName);
-    }
-    outputFile << oss.str();
+    appendRow(data);
 }
 
 StrRow FileRepository::parseRow(const DataRow& line) const {
@@ -96,24 +108,41 @@ StrRow FileRepository::parseRow(const DataRow& line) const {
     return parsedRow;
 }
 
+std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) const {
+    std::vector<StrRow> rows;
+    StrRow row;
+
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = batch.find('\n', start)) != std::string::npos) {
+        row = parseRow(batch.substr(start, end - start));
+        rows.push_back(row);
+        row.clear();
+        start = end + 1;
+    }
+    return rows;
+}
+
 void FileRepository::close() {
-    if (file.is_open()) {
-        file.close();
+    if (outFile.is_open()) {
+        outFile.close();
+    }
+    if (inFile.is_open()) {
+        inFile.close();
     }
 }
 
 void FileRepository::resetReader() {
-    if (file.is_open()) {
-        file.close();
+    if (inFile.is_open()) {
+        inFile.close();
     }
-    file.open(fileName);
+    inFile.open(fileName);
     currentReadLine = 0;
 }
 
-void FileRepository::clear(){
-    std::ofstream outputFile(fileName, std::ios::out | std::ios::trunc);
-
-    if (!outputFile.is_open()) {
-        throw std::runtime_error("Failed opening file: " + fileName);
-    }
+void FileRepository::clear() {
+    std::ofstream ofs;
+    ofs.open(fileName, std::ofstream::out | std::ofstream::trunc);
+    ofs.close();
 }

@@ -33,11 +33,15 @@ public:
 
 class FileRepository : public DataRepository {
 private:
+    size_t chunkSize = 1 << 20; // size of chunk in bytes
+    std::vector<char> buffer;
+
     std::string fileName;
     std::string separator;
     bool hasHeader;
     
-    std::fstream file;
+    std::ifstream inFile;
+    std::ofstream outFile;
     size_t currentReadLine;
     size_t totalLines;
     std::string currLine;
@@ -53,6 +57,8 @@ public:
     ~FileRepository() override;
 
     DataRow getRow() override;
+    std::string getBatch();
+
     void appendRow(const DataRow& data) override;
     void appendRow(const std::vector<std::string>& data) override;
     void appendHeader(const std::vector<std::string>& data);
@@ -62,6 +68,7 @@ public:
     void clear();
     
     StrRow parseRow(const DataRow& line) const;
+    std::vector<StrRow> parseBatch(const std::string& batch) const;
 
     bool hasNext() const { return hasNextLine; }
 };
