@@ -914,9 +914,9 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
     cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
-    while (true){
-        int i = 0;
-    }
+//    while (true){
+//        int i = 0;
+//    }
 
 }
 

@@ -300,122 +300,145 @@ void Extractor::finishExecution(){
 // ###############################################################################################
 // Metodos da classe Loader
 
-void Loader::getInput() {
+std::vector<DataFrameWithIndexes> Loader::getInput(int numThreads) {
     std::vector<DataFrameWithIndexes> inputs;
-    for (auto previousTask : previousTasks){
-        size_t dataFrameCounter = previousTask.first->getOutputs().size();
-        for (size_t i = 0; i < dataFrameCounter; i++){
-            auto dataFrame = previousTask.first->getOutputs().at(i);
-            //bool shouldSplit = previousTask.second.at(i);
-            //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
-            std::vector<int> indexes;
-            for (size_t j = 0; j < dataFrame->size(); j++){
-                indexes.push_back(j);
-            }
-            auto pair = std::make_pair(indexes, dataFrame);
+    std::shared_ptr<DataFrame> dfInput = previousTasks[0].first->getOutputs().at(inputIndex);
+    if (numThreads > 1) {
+        for (int i = 0; i < numThreads; i++){
+            std::vector<int> indexes = getRangeVector(dfInput->size(), numThreads, i);
+            auto pair = std::make_pair(indexes, dfInput);
             inputs.push_back(pair);
         }
+    } 
+    else {
+        //Primeiro constrói index para cada dataframe e depois faz e dá push no pair. Atualmente só faz uma array de índices mas isso irá mudar.
+        std::vector<int> indexes;
+        for (size_t j = 0; j < dfInput->size(); j++){
+            indexes.push_back(j);
+        }
+        auto pair = std::make_pair(indexes, dfInput);
+        inputs.push_back(pair);
     }
-    dfInput = inputs[0].second;
+    return inputs;
 }
 
 void Loader::executeMonoThread(){
-    getInput();
-    createRepo();
-    for (size_t i = 0; i < dfInput->size(); i++) {
-        // Pega cada linha do DF
-        std::vector<std::string> row = dfInput->getRow(i);
-        // Adiciona a linha ao repositório
-        repository->appendRow(row);
+    if(true){ //Tenho só que colocar linha por cima?
+        std::vector<DataFrameWithIndexes> inputs = getInput(1);
+        if(true){ //Tenho que apagar o repositório?
+            repository->clear();
+            StrRow header = inputs.at(0).second->getHeader();
+            repository->appendHeader(header);
+        }
+        std::shared_ptr<DataFrame> dfInput = inputs[0].second;
+        for (auto i: inputs[0].first) {
+            // Pega cada linha do DF
+            std::vector<std::string> row = dfInput->getRow(i);
+            // Adiciona a linha ao repositório
+            repository->appendRow(row);
+        }
+    } else {
+        //Aqui vai entrar a lógica SINGLETHREADED para atualizar as linhas.
+        std::cout << "guilherme" << std::endl;
     }
 }
 
 std::vector<std::thread> Loader::executeMultiThread(int numThreads){
+//    numThreads += 2;
     std::vector<std::thread> runningThreads;
-    if(numThreads == 1 || numThreads == 2){
+    if(numThreads == 1){
         runningThreads.emplace_back(&Loader::executeMonoThread, this);
     }
-    else {
-        getInput();
-        createRepo();
-        maxBufferSize = numThreads * numThreads;
-        runningThreads.emplace_back(&Loader::producer, this);
-
-        for (int i = 0; i < numThreads - 1; ++i) {
-            runningThreads.emplace_back(&Loader::consumer, this);
+    else{
+        if(true){ //Tenho que só colocar a linha por cima?
+            std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
+            if(true){ //Tenho que apagar o repositório?
+                repository->clear();
+                StrRow header = inputs.at(0).second->getHeader();
+                repository->appendHeader(header);
+            }
+            for (int i = 0; i < numThreads; i++) {
+                runningThreads.emplace_back(&Loader::addRows, this, inputs[i]);
+            }
+        } else {
+            //Aqui vai entrar a lógica MULTITHREADED para atualizar linhas. Pra gerar as threads tem que usar o vetor runningThreads
+            std::cout << "guilherme" << std::endl;
         }
     }
     return runningThreads;
 }
 
-void Loader::createRepo() {
-    repository->clear();
-
-    StrRow header = dfInput->getHeader();
-    repository->appendHeader(header);
-};
-
 void Loader::updateRepo(int numThreads) {   
     return;    
 };
 
-void Loader::producer() {   
-    int i = 0;
-    int inputSize = dfInput->size();
-    while (true) {
-        // Verifica se terminou
-        if (i == inputSize) break;
-
-        // Pega cada linha do DF   
-        std::vector<std::string> row = dfInput->getRow(i);
-        i++;
-
-        // Aguarda caso o buffer esteja cheio
-        std::unique_lock<std::mutex> lock(bufferMutex);
-        cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
-        // Adiciona a linha ao buffer
-        buffer.push(row);
-
-        // Notifica aos consumidores
-        cv.notify_all();
-    };
-    // Assinala aaos consumidores que encerrou a produção
-    endProduction = true;
-    cv.notify_all();
+void Loader::addRows(DataFrameWithIndexes pair) {
+    std::shared_ptr<DataFrame> dfInput = pair.second;
+    std::vector<StrRow> rows;
+    for (int i: pair.first) {
+        // Pega cada linha do DF
+        StrRow row = dfInput->getRow(i);
+        // Adiciona as linhas ao vetor de linhas
+        rows.push_back(row);
+    }
+    {
+        std::lock_guard<std::mutex> lock(repoMutex);
+        for (StrRow row : rows)
+            repository->appendRow(row);
+    }
 };
 
-void Loader::consumer() {   
-    while (true) {
-        std::unique_lock<std::mutex> lock(bufferMutex);
-
-        // Aguarda até que o buffer não esteja vazio enquanto há produção
-        cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
-
-        // Verifica se terminou o serviço
-        if (buffer.empty() && endProduction) break;
-
-        // Pega o primeira linha no buffer
-        StrRow row = buffer.front();
-        buffer.pop();
-
-        // Libera o mutex antes de acessar o repositório
-        lock.unlock(); 
-
-        // Adiciona o dado processado ao repositório
-        {
-            std::lock_guard<std::mutex> dfLock(repoMutex);
-            repository->appendRow(row);
-        }
-        cv.notify_all();
-    }
-}
-
 void Loader::finishExecution() {
-    dfInput.reset();
-    endProduction = false;
     repository->close();
     for (auto previousTask: previousTasks){
         previousTask.first->decreaseConsumingCounter();
     }
     cntExecutedPreviousTasks = 0;
 }
+
+// void Loader::producer() {
+//     int i = 0;
+//     int inputSize = dfInput->size();
+//     while (true) {
+//         // Verifica se terminou
+//         if (i == inputSize) break;
+//
+//         // Pega cada linha do DF
+//         std::vector<std::string> row = dfInput->getRow(i);
+//         i++;
+//
+//         // Aguarda caso o buffer esteja cheio
+//         std::unique_lock<std::mutex> lock(bufferMutex);
+//         cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
+//         // Adiciona a linha ao buffer
+//         buffer.push(row);
+//
+//         // Notifica aos consumidores
+//         cv.notify_all();
+//    };
+
+// void Loader::consumer() {
+//     while (true) {
+//         std::unique_lock<std::mutex> lock(bufferMutex);
+//
+//         // Aguarda até que o buffer não esteja vazio enquanto há produção
+//         cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
+//
+//         // Verifica se terminou o serviço
+//         if (buffer.empty() && endProduction) break;
+//
+//         // Pega o primeira linha no buffer
+//         StrRow row = buffer.front();
+//         buffer.pop();
+//
+//         // Libera o mutex antes de acessar o repositório
+//         lock.unlock();
+//
+//         // Adiciona o dado processado ao repositório
+//         {
+//             std::lock_guard<std::mutex> dfLock(repoMutex);
+//             repository->appendRow(row);
+//         }
+//         cv.notify_all();
+//     }
+// }
