@@ -146,36 +146,21 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
     }
 }*/
 
-struct taskNode {
-    std::shared_ptr<Task> task;
-    int level = 0;
-    int cpWeight = 0;
-    int sumWeight = 0;
-    int auxOrquestrador = 0;
-    int numChild = 0;
-
-    taskNode() = default;
-    taskNode(std::shared_ptr<Task> task) : task(task) {};
-};
-
 bool Trigger::calculateThreadsDistribution(int numThreads) {
     std::cout << "Calculando a distribuição ideal de threads...\n";
 
     if(vExtractors.empty()){
         std::cout << "Nenhum extrator foi adicionado ao Trigger.\n";
-        return 0;  
+        return false;  
     }
-    else if(vExtractors[0]->getWeight() != 0){
+    else if(!taskMap.empty()){
         std::cout << "A distribuição de threads já foi calculada.\n";
-        return 0;
+        return false;
     }
-
-    std::map<std::string, taskNode> taskMap;
     std::queue<std::string> tasksQueue, tasksQueueReverse;
 
     // Adiciona os extratores à fila de tarefas
     for (const auto& extractor : vExtractors) {
-        extractor->setWeight(1);                   // retirar isso depois
         taskMap[extractor->getTaskName()] = taskNode(extractor);
         tasksQueue.push(extractor->getTaskName());
     }
@@ -211,6 +196,15 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
         }
     }
 
+    for(auto& pair: taskMap){
+        auto& crrTaskNode = pair.second;
+
+        crrTaskNode.auxOrquestrador = 0;
+        crrTaskNode.numChild = 0;
+        crrTaskNode.cpWeight  = 0;
+        crrTaskNode.sumWeight = 0;
+    }
+
     std::cout << "Iniciando queue 2" << std::endl;
     while(!tasksQueueReverse.empty()){
         auto& crrNodeTask = taskMap[tasksQueueReverse.front()];
@@ -220,15 +214,14 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
 
         int crrBaseWeight = crrNodeTask.task->getBaseWeight(); // TODO: calcular essa valor com a estimativa do peso da task;
 
-        const auto& nextTasks = crrNodeTask.task->getNextTasks();
+        crrNodeTask.cpWeight  = crrBaseWeight;
+        crrNodeTask.sumWeight = crrBaseWeight;
 
-        // Caso base: Loader
-        if(nextTasks.empty()){ 
-            crrNodeTask.cpWeight  = crrBaseWeight;
-            crrNodeTask.sumWeight = crrBaseWeight;
-        }
-        else{
+        const auto& nextTasks = crrNodeTask.task->getNextTasks();
+        
+        if(!nextTasks.empty()){ 
             int cpChild = 0, sumChild=0;
+
             for (const auto& nextTask : nextTasks) {
                 auto& child = taskMap[nextTask->getTaskName()];
                 
@@ -237,13 +230,17 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
                 crrNodeTask.numChild += 1 + child.numChild;
             }
 
-            crrNodeTask.cpWeight   = cpChild;
-            crrNodeTask.sumWeight  += sumChild;
+            crrNodeTask.cpWeight  += cpChild;
+            crrNodeTask.sumWeight += sumChild;
         }
+        crrNodeTask.finalWeight = alpha*(double)crrNodeTask.cpWeight + (1.0-alpha)*(double)crrNodeTask.sumWeight/((double)crrNodeTask.numChild+1.0);
+        crrNodeTask.finalWeight = std::max(crrNodeTask.finalWeight, 1.0);
 
         std::cout << "cpWeight:  " << crrNodeTask.cpWeight
               << "    sumWeight: " << crrNodeTask.sumWeight
               << "    Level: "    << crrNodeTask.level
+              << "    numChild: " << crrNodeTask.numChild
+              << "    finalWeight: " << crrNodeTask.finalWeight
               << std::endl << std::endl;
 
         const auto& previousTasks = crrNodeTask.task->getPreviousTasks();
@@ -258,7 +255,7 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
                 if(prevTaskNode.cpWeight != 0) continue;
 
                 const auto& nextTasksPrevTask = prevTaskNode.task->getNextTasks();
-                if((int)nextTasksPrevTask.size() + 1 == prevTaskNode.auxOrquestrador){
+                if((int)nextTasksPrevTask.size() == prevTaskNode.auxOrquestrador){
                     tasksQueueReverse.push(prevTaskName);
                 }
             }
@@ -266,7 +263,7 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
     }
 
     std::cout << "Cálculo concluído.\n";
-    return 1;
+    return true;
 }
 
 // struct TaskComparator {
@@ -355,7 +352,12 @@ struct ExecGroup {
 };
 
 void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
+
+    auto start = std::chrono::high_resolution_clock::now();
     calculateThreadsDistribution(maxThreads);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Tempo de execução de calculateThreadsDistribution: " << elapsed.count() << " ms.\n";
 
     std::queue<std::shared_ptr<Task>> tasksQueue;
     for (auto& extr : vExtractors) 

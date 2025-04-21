@@ -2,10 +2,25 @@
 #define TRIGGER_HPP
 
 #include <vector>
+#include <map>
+#include <string>
 #include <memory>
 #include <atomic>
 #include <thread>
 #include "task.h"  // Inclui a definição de Task e Transformer
+
+struct taskNode {
+    std::shared_ptr<Task> task;
+    int level = 0;
+    int cpWeight = 0;
+    int sumWeight = 0;
+    double finalWeight = 0.0;
+    int auxOrquestrador = 0;
+    int numChild = 0;
+
+    taskNode() = default;
+    taskNode(std::shared_ptr<Task> task) : task(task) {};
+};
 
 // Classe abstrata Trigger
 class Trigger {
@@ -21,9 +36,17 @@ public:
     // Método virtual para iniciar o trigger
     virtual void start(int numThreads) = 0;
     
+    // Méto para alterar os parâmetros alpha e beta
+    // Esses parâmetros são usados para calcular a distribuição de threads
+    double getAlpha() const;
+    void setAlpha(double alpha);
 protected:
     // Vetor de tasks que serão os pontos de partida da pipeline
     std::vector<std::shared_ptr<Task>> vExtractors;
+    // Mapa de tarefas com seus respectivos nós
+    std::map<std::string, taskNode> taskMap;
+    // Variáveis para controle da heurística de distribuição de threads
+    double alpha=2.0/3.0;
 
     // Métodos internos para orquestração da pipeline
     void orchestratePipelineMonoThread();
