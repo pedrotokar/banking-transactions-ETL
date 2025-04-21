@@ -87,7 +87,7 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
                 tasksQueue.pop();
             }
 
-            std::vector<std::thread> threadList = currentTask->executeMultiThread();
+            std::vector<std::thread> threadList = currentTask->executeMultiThread(4);
             for(auto& workingThread: threadList){
                 if(workingThread.joinable()){
                     workingThread.join();
@@ -298,7 +298,7 @@ void Trigger::orchestratePipelineMultiThread2(int numThreads) {
 void RequestTrigger::start(int numThreads) {
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
-        orchestratePipelineMultiThread2(numThreads);
+        orchestratePipelineMultiThread(numThreads);
     } 
 
     else {
