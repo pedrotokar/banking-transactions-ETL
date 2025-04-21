@@ -3,4 +3,5 @@ out
 .venv
 .vscode
 .github
+.cache
 data/output*

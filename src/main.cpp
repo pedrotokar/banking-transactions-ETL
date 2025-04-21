@@ -826,18 +826,27 @@ void testeBatch() {
     cout << df.toString() << endl;
     cout << df.size() << endl;
     
-    // auto batch = inputRepository->getBatch();
-    // auto parsed = inputRepository->parseBatch(batch);
-    // for (auto& row : parsed) {
-    //     df.addRow(row);
-    // }
-    // batch = inputRepository->getBatch();
-    // parsed = inputRepository->parseBatch(batch);
-    // for (auto& row : parsed) {
-    //     df.addRow(row);
-    // }
+    
+    SQLiteRepository* repo = new SQLiteRepository("data/teste_sql.db");
+    repo->setTable("sql_table");
 
-    // cout << "DataFrame after adding a new row:\n" << df.toString(1000) << endl;
+    std::string row;
+
+    row = repo->getRow();
+    auto parsedRow = repo->parseRow(row);
+    for (auto& col : parsedRow) {
+        cout << col << " ";
+    }
+
+    auto values = repo->serializeBatch({{"1", "2", "3"},
+                                        {"3", "2", "1"},
+                                        {"3", "3", "3"}});
+
+    repo->appendStr(values);
+
+    repo->createTable("teste2", "ID INTEGER,"
+                                "NAME TEXT,"
+                                "AGE INTEGER");
 }
 
 int main(int argc, char *argv[]) {

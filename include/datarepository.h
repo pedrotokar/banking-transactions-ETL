@@ -2,16 +2,9 @@
 #define DATAREPOSITORY_H
 
 #include <vector>
-#include <variant>
-#include <any>
 #include <string>
-#include <any>
 #include <fstream>
-#include <sstream>
 #include <stdexcept>
-#include <memory>
-#include <limits>
-#include <iostream>
 
 #include <sqlite3.h>
 
@@ -26,12 +19,16 @@ public:
     virtual std::string getRow() = 0;
     virtual std::string getBatch() = 0;
 
-    virtual void appendRow(const std::string& data) = 0;
+    virtual StrRow parseRow(const std::string& line) = 0;
+    virtual std::vector<StrRow> parseBatch(const std::string& batch) = 0;
+
+    virtual void appendStr(const std::string& data) = 0;
     virtual void appendRow(const std::vector<std::string>& data) = 0;
+    virtual void appendHeader(const std::vector<std::string>& data) = 0;
+
+    virtual std::string serializeBatch(const std::vector<StrRow>& data) = 0;
 
     virtual void resetReader() {};
-    virtual size_t lineCount() const { return 0; };
-
     virtual void clear() {};
     virtual void close() {};
 };
@@ -65,22 +62,24 @@ public:
     std::string getRow() override;
     std::string getBatch() override;
 
-    void appendRow(const DataRow& data) override;
+    StrRow parseRow(const DataRow& line) override;
+    std::vector<StrRow> parseBatch(const std::string& batch) override;
+
+    void appendStr(const std::string& data) override;
     void appendRow(const std::vector<std::string>& data) override;
-    void appendHeader(const std::vector<std::string>& data);
-    void resetReader() override;
-    size_t lineCount() const override { return totalLines; }
-    void close();
-    void clear();
-    
-    StrRow parseRow(const DataRow& line) const;
-    std::vector<StrRow> parseBatch(const std::string& batch) const;
+    void appendHeader(const std::vector<std::string>& data) override;
+
+    std::string serializeBatch(const std::vector<StrRow>& data) override;
 
     bool hasNext() const { return hasNextLine; }
+
+    void resetReader() override;
+    void close() override;
+    void clear() override;
 };
 
 
-class SQLiteRepository { 
+class SQLiteRepository : public DataRepository { 
 private:
     sqlite3* db;
     sqlite3_stmt* stmt;
@@ -111,20 +110,23 @@ public:
     void setTable(const std::string& tableName);
     void createTable(const std::string& tableName, const std::string& schema);
 
-    std::string getRow();
-    std::string getBatch();
+    std::string getRow() override;
+    std::string getBatch() override;
 
-    void appendStr(const std::string& data);
-    void appendRow(const std::vector<std::string>& data);
-    void appendHeader(const std::vector<std::string>& data);
-    void appendBatch(const std::vector<StrRow>& data);
+    StrRow parseRow(const std::string& row) override;
+    std::vector<StrRow> parseBatch(const std::string& batch) override;
 
-    StrRow parseRow(const std::string& row) const;
-    std::vector<StrRow> parseBatch(const std::string& batch);
-    
-    void resetReader();
-    void clear();
-    void close();
+    void appendStr(const std::string& data) override;
+    void appendRow(const std::vector<std::string>& data) override;
+    void appendHeader(const std::vector<std::string>& data) override;
+
+    std::string serializeBatch(const std::vector<StrRow>& data) override;
+
+    bool hasNext() const { return !done; }
+
+    void resetReader() override;
+    void clear() override;
+    void close() override;
 };
     
 #endif // DATAREPOSITORY_H

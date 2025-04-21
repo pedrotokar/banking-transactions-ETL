@@ -1,5 +1,4 @@
 #include <iostream>
-#include <sstream>
 #include <sqlite3.h>
 
 #include "types.h"
@@ -74,6 +73,28 @@ std::string SQLiteRepository::getBatch() {
     return "";
 }
 
+
+StrRow SQLiteRepository::parseRow(const std::string& row) {
+    StrRow parsedRow;
+    parsedRow.reserve(nCols);
+    for (size_t i = 0; i < nCols; ++i) {
+        const char* text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
+        parsedRow.emplace_back(text);
+    }
+    return parsedRow;
+};
+
+std::vector<StrRow> SQLiteRepository::parseBatch(const std::string& batch) {
+    std::vector<StrRow> parsedRows;
+    parsedRows.reserve(batchSize);
+    for (size_t i = 0; i < batchSize; ++i) {
+        getRow();
+        auto row = parseRow(batch);
+        parsedRows.push_back(row);
+    }
+    return parsedRows;
+}
+
 void SQLiteRepository::appendStr(const std::string& data) {
     checkTable();
     std::string sqlInsert = "INSERT INTO " + tableName + " VALUES ";
@@ -107,7 +128,7 @@ void SQLiteRepository::appendHeader(const std::vector<std::string>& data) {
     return;
 }
 
-void SQLiteRepository::appendBatch(const std::vector<std::vector<std::string>>& data) {
+std::string SQLiteRepository::serializeBatch(const std::vector<StrRow>& data) {
     checkTable();
     std::string values;
     for (const auto& row : data) {
@@ -121,28 +142,7 @@ void SQLiteRepository::appendBatch(const std::vector<std::vector<std::string>>& 
         values += "),";
     }
     values.pop_back();
-    appendStr(values);
-}
-
-StrRow SQLiteRepository::parseRow(const std::string& row) const {
-    StrRow parsedRow;
-    parsedRow.reserve(nCols);
-    for (size_t i = 0; i < nCols; ++i) {
-        const char* text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
-        parsedRow.emplace_back(text);
-    }
-    return parsedRow;
-};
-
-std::vector<StrRow> SQLiteRepository::parseBatch(const std::string& batch) {
-    std::vector<StrRow> parsedRows;
-    parsedRows.reserve(batchSize);
-    for (size_t i = 0; i < batchSize; ++i) {
-        getRow();
-        auto row = parseRow(batch);
-        parsedRows.push_back(row);
-    }
-    return parsedRows;
+    return values;
 }
 
 void SQLiteRepository::resetReader() {

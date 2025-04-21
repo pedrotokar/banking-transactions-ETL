@@ -1,6 +1,4 @@
-
 #include <iostream>
-#include <sstream>
 
 #include "types.h"
 #include "datarepository.h"
@@ -71,7 +69,7 @@ std::string FileRepository::getBatch() {
     return chunkData;
 }
 
-void FileRepository::appendRow(const DataRow& data) {
+void FileRepository::appendStr(const std::string& data) {
     if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
@@ -94,7 +92,22 @@ void FileRepository::appendHeader(const std::vector<std::string>& data) {
     appendRow(data);
 }
 
-StrRow FileRepository::parseRow(const DataRow& line) const {
+std::string FileRepository::serializeBatch(const std::vector<StrRow>& data) {
+    std::string values;
+    for (const auto& row : data) {
+        for (size_t i = 0; i < row.size(); ++i) {
+            values += row[i];
+            if (i < row.size() - 1) {
+                values += ",";
+            }
+        }
+        values += "\n";
+    }
+    values.pop_back();
+    return values;
+}
+
+StrRow FileRepository::parseRow(const DataRow& line) {
     StrRow parsedRow;
     parsedRow.reserve(3); /// TODO: Adicionar um parametro pro tamanho
 
@@ -109,7 +122,7 @@ StrRow FileRepository::parseRow(const DataRow& line) const {
     return parsedRow;
 }
 
-std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) const {
+std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) {
     std::vector<StrRow> rows;
     StrRow row;
 
