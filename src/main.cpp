@@ -1282,18 +1282,18 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfOutE3->addColumn<double>     ("media_transacional_mensal");
     dfOutE3->addColumn<int>        ("num_fraudes_ult_30d");
 
-    auto tp1 = std::make_shared<PrintTransformer>("------- Printing output e0");
+    auto tp1 = std::make_shared<PrintTransformer>("------- Printing output e1");
     auto tp2 = std::make_shared<PrintTransformer>("------- Printing output e3");
 
-    auto e0 = std::make_shared<Extractor>();
-    e0->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
-    e0->addOutput(dfOutE1);
+    auto e1 = std::make_shared<Extractor>();
+    e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
+    e1->addOutput(dfOutE1);
 
     auto e3 = std::make_shared<Extractor>();
     e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
     e3->addOutput(dfOutE3);
 
-    e0->addNext(tp1, {1});
+    e1->addNext(tp1, {1});
     e3->addNext(tp2, {1});
 /*
     auto e3 = std::make_shared<Extractor>();
@@ -1312,7 +1312,7 @@ void testePipelineTransacoes(int nThreads = 2) {
     eUserReg->addNext(t4, {1});  */
 
     RequestTrigger trigger;
-    trigger.addExtractor(e0);
+    trigger.addExtractor(e1);
     trigger.addExtractor(e3);
     // trigger.addExtractor(e3);
     trigger.start(nThreads);
