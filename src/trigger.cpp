@@ -87,12 +87,21 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
                 tasksQueue.pop();
             }
 
-            std::vector<std::thread> threadList = currentTask->executeMultiThread(4);
-            for(auto& workingThread: threadList){
-                if(workingThread.joinable()){
-                    workingThread.join();
+            int numThreadsCalling = 5;
+            std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> threadList = currentTask->executeMultiThread(5);
+            auto copy = threadList.first;
+//            for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
+            //Parece estar morrendo aqui
+            std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
+            for(auto& thread: threadList.second){
+                if(thread.joinable()){
+                    thread.join();
                 }
+                std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
+                // for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
             }
+            std::cout << std::endl << copy.use_count() << " " << copy.get() << std::endl;
+            // for(int i = 0; i < numThreadsCalling; i++) std::cout << threadList.first->at(i) << " "; std::cout << std::endl;
             currentTask->finishExecution();
 
             {
@@ -256,10 +265,11 @@ void Trigger::orchestratePipelineMultiThread2(int numThreads) {
                 tasksQueue.pop();
             }
 
-            std::vector<std::thread> threadList = currentTask->executeMultiThread();
-            for(auto& workingThread: threadList){
-                if(workingThread.joinable()){
-                    workingThread.join();
+            std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> threadList = currentTask->executeMultiThread();
+            for(auto& thread: threadList.second){
+                //std::cout << pair.second.get_id() << std::endl;
+                if(thread.joinable()){
+                    thread.join();
                 }
             }
             currentTask->finishExecution();

@@ -114,6 +114,11 @@ int Task::getLevel() const {
     return taskLevel;
 }
 
+void Task::executeMonoThreadSpecial(std::shared_ptr<std::vector<int>> completedList, int tIndex){
+    executeMonoThread();
+    (*completedList)[tIndex] = true;
+}
+
 // ###############################################################################################
 // ###############################################################################################
 // Metodos da classe transformer
@@ -131,15 +136,24 @@ void Transformer::decreaseConsumingCounter(){
     }
 }
 
-std::vector<std::thread> Transformer::executeMultiThread(int numThreads){
+void Transformer::transformThread(std::vector<std::shared_ptr<DataFrame>>& outputs,
+                     const std::vector<DataFrameWithIndexes>& inputs,
+                     std::shared_ptr<std::vector<int>> completedList, int tIndex){
+    // std::cout << tIndex << " " << completedList->size() << std::endl;
+    transform(outputs, inputs);
+    (*completedList)[tIndex] = true;
+}
+
+std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> Transformer::executeMultiThread(int numThreads){
     std::vector<std::thread> runningThreads;
+    std::shared_ptr<std::vector<int>> completedThreads = std::make_shared<std::vector<int>>(numThreads, 0);
     if(numThreads == 1){
-        runningThreads.emplace_back(&Transformer::executeMonoThread, this);
+        runningThreads.emplace_back(&Transformer::executeMonoThreadSpecial, this, completedThreads, 0);
     }
     else{
-        runningThreads = executeWithThreading(numThreads);
+        runningThreads = executeWithThreading(numThreads, completedThreads);
     }
-    return runningThreads;
+    return std::make_pair(completedThreads, std::move(runningThreads));
 }
 
 void Transformer::executeMonoThread(){
@@ -165,7 +179,7 @@ void Transformer::executeMonoThread(){
 }
 
 //Função separada da executeMultiThread para não poluir ela
-std::vector<std::thread> Transformer::executeWithThreading(int numThreads){
+std::vector<std::thread> Transformer::executeWithThreading(int numThreads, std::shared_ptr<std::vector<int>> completedList){
     //Um vector contendo as entradas que serão passadas para cada thread
     std::vector<std::vector<DataFrameWithIndexes>> threadInputs;
     for (int i = 0; i < numThreads; i++){
@@ -198,10 +212,10 @@ std::vector<std::thread> Transformer::executeWithThreading(int numThreads){
         }
     }
     std::vector<std::thread> threadList;
-    threadList.reserve(numThreads);
+//    threadList.reserve(numThreads);
     for(int tIndex = 0; tIndex < numThreads; tIndex++){
         //Cada thread executa o equivalente a transform(outputDFs, threadInputs.at(tIndex));
-        threadList.emplace_back(&Transformer::transform, this, ref(outputDFs), threadInputs.at(tIndex));
+        threadList.emplace_back(&Transformer::transformThread, this, ref(outputDFs), threadInputs.at(tIndex), ref(completedList), tIndex);
     }
     return threadList;
 }
@@ -253,24 +267,25 @@ void Extractor::executeMonoThread(){
     };
 }
 
-std::vector<std::thread> Extractor::executeMultiThread(int numThreads){
+std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> Extractor::executeMultiThread(int numThreads){
     std::vector<std::thread> runningThreads;
-    if(numThreads == 1 || numThreads == 2){
-        runningThreads.emplace_back(&Extractor::executeMonoThread, this);
+    std::shared_ptr<std::vector<int>> completedThreads = std::make_shared<std::vector<int>>(numThreads, 0);
+    if(numThreads == 1){
+        runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, completedThreads, 0);
     }
     else{
         std::cout << "Executando extrator com " << numThreads - 1<< " de consumidor" << std::endl;
         maxBufferSize = numThreads * numThreads;
 
-        runningThreads.emplace_back(&Extractor::producer, this);
+        runningThreads.emplace_back(&Extractor::producer, this, completedThreads, 0);
         for (int i = 0; i < numThreads - 1; ++i) {
-            runningThreads.emplace_back(&Extractor::consumer, this);
+            runningThreads.emplace_back(&Extractor::consumer, this, completedThreads, i + 1);
         }
     }
-    return runningThreads;
+    return std::make_pair(completedThreads, std::move(runningThreads));
 }
 
-void Extractor::producer() {
+void Extractor::producer(std::shared_ptr<std::vector<int>> completedList, int tIndex) {
     while (true) {
         // Pega um batch de linhas da base de dados
         std::string rows = repository->getBatch();
@@ -297,9 +312,10 @@ void Extractor::producer() {
 
     // Notifica aos consumidores que encerrou a produção
     cv.notify_all();
+    (*completedList)[tIndex] = true;
 };
 
-void Extractor::consumer() {
+void Extractor::consumer(std::shared_ptr<std::vector<int>> completedList, int tIndex) {
     while (true) {
         std::unique_lock<std::mutex> lock(bufferMutex);
 
@@ -327,6 +343,7 @@ void Extractor::consumer() {
         }
         cv.notify_all();
     }
+    (*completedList)[tIndex] = true;
 }
 
 void Extractor::finishExecution(){
@@ -382,11 +399,12 @@ void Loader::executeMonoThread(){
     }
 }
 
-std::vector<std::thread> Loader::executeMultiThread(int numThreads){
-//    numThreads += 2;
+std::pair<std::shared_ptr<std::vector<int>>, std::vector<std::thread>> Loader::executeMultiThread(int numThreads){
+
     std::vector<std::thread> runningThreads;
+    std::shared_ptr<std::vector<int>> completedThreads = std::make_shared<std::vector<int>>(numThreads, 0);
     if(numThreads == 1){
-        runningThreads.emplace_back(&Loader::executeMonoThread, this);
+        runningThreads.emplace_back(&Loader::executeMonoThreadSpecial, this, completedThreads, 0);
     }
     else{
         if(true){ //Tenho que só colocar a linha por cima?
@@ -397,21 +415,21 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads){
                 repository->appendHeader(header);
             }
             for (int i = 0; i < numThreads; i++) {
-                runningThreads.emplace_back(&Loader::addRows, this, inputs[i]);
+                runningThreads.emplace_back(&Loader::addRows, this, inputs[i], completedThreads, i);
             }
         } else {
             //Aqui vai entrar a lógica MULTITHREADED para atualizar linhas. Pra gerar as threads tem que usar o vetor runningThreads
             std::cout << "guilherme" << std::endl;
         }
     }
-    return runningThreads;
+    return std::make_pair(completedThreads, std::move(runningThreads));
 }
 
 void Loader::updateRepo(int numThreads) {   
     return;    
 };
 
-void Loader::addRows(DataFrameWithIndexes pair) {
+void Loader::addRows(DataFrameWithIndexes pair, std::shared_ptr<std::vector<int>> completedList, int tIndex) {
     std::shared_ptr<DataFrame> dfInput = pair.second;
     std::vector<StrRow> rows;
     for (int i: pair.first) {
@@ -425,6 +443,7 @@ void Loader::addRows(DataFrameWithIndexes pair) {
         for (StrRow row : rows)
             repository->appendRow(row);
     }
+    (*completedList)[tIndex] = true;
 };
 
 void Loader::finishExecution() {
