@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <algorithm>
 
 using DataFramePtr         = std::shared_ptr<DataFrame>;
 using DataFrameWithIndexes = std::pair<std::vector<int>, DataFramePtr>;
@@ -601,79 +602,103 @@ void testePipelineTransacoes(int nThreads = 2) {
     auto e1 = std::make_shared<Extractor>();
     e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
     e1->addOutput(dfE1);
+    e1->setTaskName("e1");
 
     auto e2 = std::make_shared<Extractor>();
     e2->addRepo(new FileRepository("data/informacoes_cadastro_100k.csv", ",", true));
     e2->addOutput(dfE2);
+    e2->setTaskName("e2");
 
     auto e3 = std::make_shared<Extractor>();
     e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
     e3->addOutput(dfE3);
+    e3->setTaskName("e3");
 
     //==================== Construção dos elementod do DAG ===========================//
     auto t1 = std::make_shared<T1Transformer>();
     t1->addOutput(dfT1);
+    t1->setTaskName("t1");
 
     auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
     t1->addNext(tp1, {1});
+    tp1->setTaskName("tp1");
 
     auto t2 = std::make_shared<T2Transformer>();
     t2->addOutput(dfT2);
+    t2->setTaskName("t2");
 
     auto tp2 = std::make_shared<PrintTransformer>(">>> T2 outputs");
     t2->addNext(tp2, {1});
+    tp2->setTaskName("tp2");
 
     auto t3 = std::make_shared<T3Transformer>();
     t3->addOutput(dfT3);
+    t3->setTaskName("t3");
 
     auto tp3 = std::make_shared<PrintTransformer>(">>> T3 outputs");
     t3->addNext(tp3, {1});
+    tp3->setTaskName("tp3");
 
     auto t4 = std::make_shared<T4Transformer>();
     t4->addOutput(dfT4);
+    t4->setTaskName("t4");
 
     auto tp4 = std::make_shared<PrintTransformer>(">>> T4 outputs");
     t4->addNext(tp4, {1});
+    t4->setTaskName("tp4");
 
     auto t5 = std::make_shared<T5Transformer>();
     t5->addOutput(dfT5);
+    t5->setTaskName("t5");
 
     auto tp5 = std::make_shared<PrintTransformer>(">>> T5 outputs");
     t5->addNext(tp5, {1});
+    tp5->setTaskName("tp5");
 
     auto t6 = std::make_shared<T6Transformer>();
     t6->addOutput(dfT6);
+    t6->setTaskName("t6");
 
     auto tp6 = std::make_shared<PrintTransformer>(">>> T6 outputs");
     t6->addNext(tp6, {1});
+    tp6->setTaskName("tp6");
 
     auto t7 = std::make_shared<T7Transformer>();
     t7->addOutput(dfT7);
+    t7->setTaskName("t7");
 
     auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
     t7->addNext(tp7, {1});
+    tp7->setTaskName("tp7");
 
     auto t8 = std::make_shared<T8Transformer>();
     t8->addOutput(dfT8Main);
     t8->addOutput(dfT8Val);
     t8->addOutput(dfT8Hor);
     t8->addOutput(dfT8Reg);
+    t8->setTaskName("t8");
 
     auto t9 = std::make_shared<T9Transformer>();
     t9->addOutput(dfT9);
+    t9->setTaskName("t9");
 
     auto tp9 = std::make_shared<PrintTransformer>(">>> T9 outputs");
     t9->addNext(tp9, {1});
+    tp9->setTaskName("tp9");
     
     auto l6 = std::make_shared<Loader>(0);
     l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
+    l6->setTaskName("l6");
 
     auto l3 = std::make_shared<Loader>(1);
     l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", true));
+    l3->setTaskName("l3");
     auto l4 = std::make_shared<Loader>(2);
     l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
+    l4->setTaskName("l4");
     auto l5 = std::make_shared<Loader>(3);
     l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
+    l5->setTaskName("l5");
 
     
     //==================== Construção dos elementod do DAG ===========================//

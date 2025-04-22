@@ -2,202 +2,76 @@
 #define TRIGGER_HPP
 
 #include <vector>
-#include <queue>
-#include <thread>
-#include <chrono>
-#include <atomic>
-#include <condition_variable>
+#include <map>
+#include <string>
 #include <memory>
-#include <iostream>
+#include <atomic>
+#include <thread>
 #include "task.h"  // Inclui a definição de Task e Transformer
+
+struct taskNode {
+    std::shared_ptr<Task> task;
+    int level = 0;
+    int cpWeight = 0;
+    int sumWeight = 0;
+    double finalWeight = 0.0; // alpha * cpWeight + (1-alpha) * (sumWeight / numChild)
+    int auxOrquestrador = 0;
+    int numChild = 0;
+
+    taskNode() = default;
+    taskNode(std::shared_ptr<Task> task) : task(task) {};
+};
 
 // Classe abstrata Trigger
 class Trigger {
 public:
-    virtual ~Trigger() = default;
+    virtual ~Trigger();
     
     // Define os extratores (ou tasks de início) da pipeline.
     // Estes serão os pontos de entrada para a execução.
-    void setExtractors(const std::vector<std::shared_ptr<Task>>& vExtractors) {
-        this->vExtractors = vExtractors;
-    }
-    void addExtractor(std::shared_ptr<Task> extractor) {
-        vExtractors.push_back(extractor);
-    }
-    void clearExtractors() {
-        vExtractors.clear();
-    }
+    void setExtractors(const std::vector<std::shared_ptr<Task>>& vExtractors);
+    void addExtractor(std::shared_ptr<Task> extractor);
+    void clearExtractors();
     
     // Método virtual para iniciar o trigger
     virtual void start(int numThreads) = 0;
     
+    // Méto para alterar os parâmetros alpha e beta
+    // Esses parâmetros são usados para calcular a distribuição de threads
+    double getAlpha() const;
+    void setAlpha(double alpha);
 protected:
     // Vetor de tasks que serão os pontos de partida da pipeline
     std::vector<std::shared_ptr<Task>> vExtractors;
+    // Mapa de tarefas com seus respectivos nós
+    std::map<std::string, taskNode> taskMap;
+    // Variáveis para controle da heurística de distribuição de threads
+    double alpha=2.0/3.0;
 
-    // Método interno responsável por orquestrar a execução da pipeline
-    void orchestratePipelineMonoThread() {
-        std::queue<std::shared_ptr<Task>> tasksQueue;
-    
-        // Adiciona os extratores à fila de tarefas
-        for (const auto& extractor : vExtractors) {
-            tasksQueue.push(extractor);
-        }
-        
-        std::cout << "Iniciando execução da pipeline...\n";
-        while (!tasksQueue.empty()) {
-            auto task = tasksQueue.front();
-            tasksQueue.pop();
-
-            // Executa a tarefa
-            std::cout << "(1)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
-            task->executeMonoThread();
-            task->finishExecution();
-            std::cout << "(2)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
-
-            // Adiciona as próximas tarefas à fila
-            const auto& nextTasks = task->getNextTasks();
-            for (const auto& nextTask : nextTasks) {
-                nextTask->incrementExecutedPreviousTasks();
-
-                // Se todas as tarefas anteriores foram executadas, adiciona a próxima tarefa à fila
-                if(nextTask->checkPreviousTasks()) {
-                    tasksQueue.push(nextTask);  
-                }
-            }
-        }
-        std::cout << "Pipeline concluída.\n";
-    }
-
-    // Método interno responsável por orquestrar a execução da pipeline em múltiplas threads.
-    // numThreads define o número fixo de threads que serão utilizadas.
-    void orchestratePipelineMultiThread(int numThreads) {
-        std::queue<std::shared_ptr<Task>> tasksQueue;
-        std::mutex queueMutex;
-        std::condition_variable cv;
-        // Contador de tasks pendentes: inclui tasks na fila e em processamento.
-        std::atomic<int> pendingTasks{0};
-
-        // Insere os extratores na fila e atualiza o contador de tasks pendentes.
-        {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            for (const auto& extractor : vExtractors) {
-                tasksQueue.push(extractor);
-                pendingTasks++;
-            }
-        }
-
-        // Função que define o comportamento dos worker threads.
-        auto worker = [&]() {
-            while (true) {
-                std::shared_ptr<Task> currentTask;
-                {
-                    // Aguarda até que haja uma task na fila ou até que não haja nenhuma task pendente.
-                    std::unique_lock<std::mutex> lock(queueMutex);
-                    cv.wait(lock, [&]() { 
-                        return !tasksQueue.empty() || pendingTasks.load() == 0; 
-                    });
-
-                    // Se a fila estiver vazia e não houver tasks pendentes, finaliza o worker.
-                    if (tasksQueue.empty() && pendingTasks.load() == 0) {
-                        return;
-                    }
-
-                    // Retira uma task da fila.
-                    currentTask = tasksQueue.front();
-                    tasksQueue.pop();
-                }
-
-                // Executa a task fora da região crítica.
-                std::vector<std::thread> threadList = currentTask->executeMultiThread();
-                for(auto& workingThread: threadList){
-                    if(workingThread.joinable()){
-                        workingThread.join();
-                    }
-                }
-                currentTask->finishExecution();
-
-                // Após a execução, adiciona as próximas tasks (se houver) na fila.
-                {
-                    std::lock_guard<std::mutex> lock(queueMutex);
-                    for (const auto& nextTask : currentTask->getNextTasks()) {
-                        nextTask->incrementExecutedPreviousTasks();
-                        
-                        // Se todas as tasks anteriores foram executadas, adiciona a próxima task na fila.
-                        if(nextTask->checkPreviousTasks()) {
-                            tasksQueue.push(nextTask);
-                            pendingTasks++;
-                        }
-                    }
-                }
-
-                // Marca a task atual como concluída e notifica os outros threads.
-                pendingTasks--;
-                cv.notify_all();
-            }
-        };
-
-        // Cria e inicia o número fixo de threads de trabalho.
-        std::vector<std::thread> workers;
-        for (int i = 0; i < numThreads; ++i) {
-            workers.emplace_back(worker);
-        }
-
-        // Aguarda que todos os threads finalizem.
-        for (auto& workerThread : workers) {
-            if (workerThread.joinable()) {
-                workerThread.join();
-            }
-        }
-    }
-
+    // Métodos internos para orquestração da pipeline
+    void orchestratePipelineMonoThread();
+    void orchestratePipelineMultiThread(int numThreads);
+    // Novos métodos para orquestração com múltiplas threads
+    void orchestratePipelineMultiThread2(int numThreads);
+    void orchestratePipelineMultiThread3(int numThreads);
+    bool calculateThreadsDistribution(int numThreads);
 };
 
 // Trigger que executa a pipeline apenas uma vez
 class RequestTrigger : public Trigger {
 public:
-    void start(int numThreads=1) override {
-        // Executa a pipeline uma única vez
-        if(numThreads > 1) {
-            std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
-            orchestratePipelineMultiThread(numThreads);
-        } 
-        else {
-            std::cout << "Executando a pipeline em uma única thread.\n";
-            orchestratePipelineMonoThread();
-        }
-    }
+    void start(int numThreads = 1) override;
 };
 
 // Trigger que executa a pipeline repetidamente a cada intervalo definido
 class TimerTrigger : public Trigger {
 public:
     // O construtor recebe o intervalo em milissegundos
-    TimerTrigger(unsigned int intervaloMs)
-        : intervalo(intervaloMs), stopFlag(false) {}
-
-    ~TimerTrigger() {
-        stop();
-    }
+    TimerTrigger(unsigned int intervaloMs);
+    ~TimerTrigger();
     
-    void start(int numThreads=1) override {
-        stopFlag = false;
-        // Cria uma thread que roda o trigger em loop até que seja solicitado parar
-        timerThread = std::thread([this]() {
-            while (!stopFlag) {
-                orchestratePipelineMonoThread();
-                std::this_thread::sleep_for(std::chrono::milliseconds(intervalo));
-            }
-        });
-    }
-    
-    // Permite parar a execução do TimerTrigger
-    void stop() {
-        stopFlag = true;
-        if (timerThread.joinable()) {
-            timerThread.join();
-        }
-    }
+    void start(int numThreads = 1) override;
+    void stop();
     
 private:
     unsigned int intervalo;          // Intervalo entre execuções (em milissegundos)

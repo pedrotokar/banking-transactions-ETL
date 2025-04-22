@@ -292,21 +292,87 @@ void testExtractorAndLoader(int nThreads = 2) {
 
     FileRepository* repository = new FileRepository("data/mock_emap.csv", ",", true);
 
-    auto e0 = std::make_shared<Extractor>();
+    std::shared_ptr<DataFrame> df_sql = std::make_shared<DataFrame>();
+    SQLiteRepository* sqliteRepository = new SQLiteRepository("data/teste_sql.db");
+    sqliteRepository->setTable("sql_table");
+
+
+    df_sql->addColumn<std::string>("TEXTO");
+    df_sql->addColumn<int>("INTEIRO");
+    df_sql->addColumn<double>("FLOAT");
+
+    auto e0 = std::make_shared<ExtractorFile>();
+    auto e1 = std::make_shared<ExtractorSQLite>();
 
     e0->addOutput(df);
     e0->addRepo(repository);
 
-    auto l0 = std::make_shared<Loader>();
+    e1->addOutput(df_sql);
+    e1->addRepo(sqliteRepository);
+
+    auto l0 = std::make_shared<LoaderFile>(0);
+    auto l1 = std::make_shared<LoaderFile>(0);
 
     e0->addNext(l0, {1});
+    e1->addNext(l1, {1});
 
     FileRepository* outputRepository = new FileRepository("data/output_mock_emap.csv", ",", true);
     l0->addRepo(outputRepository);
 
+    
+    FileRepository* out_sql = new FileRepository("data/output_teste_sql.csv", ",", true);
+    l1->addRepo(out_sql);
+
     RequestTrigger trigger;
     trigger.addExtractor(e0);
+    // trigger.addExtractor(e1);
 
+    //================================================//
+    // Inicialização do trigger e execução da pipeline//
+    //================================================//
+    std::cout << "\nStartando trigger...\n";
+    trigger.start(nThreads);
+    std::cout << "\nTrigger finalizado.\n" << std::endl;
+}
+
+void testLoaderSQL(int nThreads = 2) {
+    std::shared_ptr<DataFrame> df_sql = std::make_shared<DataFrame>();
+    SQLiteRepository* sqliteRepository = new SQLiteRepository("data/teste_sql.db");
+    sqliteRepository->setTable("sql_table");
+
+
+    df_sql->addColumn<std::string>("TEXTO");
+    df_sql->addColumn<int>("INTEIRO");
+    df_sql->addColumn<double>("FLOAT");
+
+    auto e0 = std::make_shared<ExtractorSQLite>();
+    auto e1 = std::make_shared<ExtractorSQLite>();
+
+    e0->addOutput(df_sql);
+    e0->addRepo(sqliteRepository);
+
+    e1->addOutput(df_sql);
+    e1->addRepo(sqliteRepository);
+
+    auto l0 = std::make_shared<LoaderSQLite>(0);
+    auto l1 = std::make_shared<LoaderFile>(0);
+
+    e0->addNext(l0, {1});
+    e1->addNext(l1, {1});
+
+    SQLiteRepository* out_sqlite = new SQLiteRepository("data/output_teste_sql.db");
+    // out_sqlite->setTable("teste");
+    out_sqlite->createTable("teste", "NAME TEXT,"
+                                "ID INTEGER,"
+                                "AGE REAL");
+
+    l0->addRepo(out_sqlite);
+
+    FileRepository* outputRepository = new FileRepository("data/output_teste_sql.csv", ",", true);
+    l1->addRepo(outputRepository);
+
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
     //================================================//
     // Inicialização do trigger e execução da pipeline//
     //================================================//
@@ -580,7 +646,6 @@ public:
     }
 };
 
-
 class SalarySumTransformer : public Transformer {
 private:
     std::mutex salarySumMutex;
@@ -800,49 +865,70 @@ void testeGeralEmap(int nThreads = 1){
     //             Definições de cada bloco           //
     //================================================//
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
-    auto e0 = std::make_shared<Extractor>();
+    auto e0 = std::make_shared<ExtractorFile>();
     e0->addOutput(dfOutE);
     e0->addRepo(inputRepository);
+    e0->setTaskName("e0");
 
     auto t11FilterStrings = std::vector<std::string>{"Secretario", "Professor", "Diretor"};
     auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
     t11->addOutput(dfOut11);
+    t11->setTaskName("t1.1");
+    t11->setMaxThreadsProportion(0.3);
 
     auto t12FilterStrings = std::vector<std::string>{"AlunoGrad", "AlunoMesc"};
     auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
     t12->addOutput(dfOut12);
+    t12->setTaskName("t1.2");
+    t12->setMaxThreadsProportion(0.4);
 
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
+    t21->setTaskName("t2.1");
+    t21->setBaseWeight(5);
+    t21->setMaxThreadsProportion(0.6);
 
     auto t22 = std::make_shared<CounterTransformer>();
     t22->addOutput(dfOut22);
+    t22->setTaskName("t2.2");
 
     auto t23 = std::make_shared<SalarySumTransformer>();
     t23->addOutput(dfOut23);
+    t23->setTaskName("t2.3");
+    t23->setBaseWeight(2);
 
     auto t24 = std::make_shared<AgeSumTransformer>();
     t24->addOutput(dfOut24);
+    t24->setTaskName("t2.4");
+    t24->setBaseWeight(5);
+    t24->setMaxThreadsProportion(0.6);
 
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
+    t3->setTaskName("t3");
+    t3->blockParallel();
 
     FileRepository* outputRepositoryFilter = new FileRepository("data/output_emap_filtered.csv", ",", true);
-    auto l0 = std::make_shared<Loader>();
+    auto l0 = std::make_shared<LoaderFile>(0);
     l0->addRepo(outputRepositoryFilter);
+    l0->setTaskName("l0");
 
     FileRepository* outputRepositoryAges = new FileRepository("data/output_emap_age.csv", ",", true);
-    auto l1 = std::make_shared<Loader>();
+    auto l1 = std::make_shared<LoaderFile>(0);
     l1->addRepo(outputRepositoryAges);
+    l1->setTaskName("l1");
 
     FileRepository* outputRepositorySalary = new FileRepository("data/output_emap_salary.csv", ",", true);
-    auto l2 = std::make_shared<Loader>();
+    auto l2 = std::make_shared<LoaderFile>(0);
     l2->addRepo(outputRepositorySalary);
+    l2->setTaskName("l2");
 
     FileRepository* outputRepositoryMean = new FileRepository("data/output_emap_mean.csv", ",", true);
-    auto l3 = std::make_shared<Loader>();
+    auto l3 = std::make_shared<LoaderFile>(0);
     l3->addRepo(outputRepositoryMean);
-
+    l3->setTaskName("l3");
+    l3->blockParallel();
+    
     //================================================//
     //                Construção do DAG               //
     //================================================//
@@ -914,10 +1000,9 @@ void testeGeralEmap(int nThreads = 1){
     cout << "t2.3 internal df size after running: " << t23->getOutputs().at(0)->size() << endl;
     cout << "t2.4 internal df size after running: " << t24->getOutputs().at(0)->size() << endl;
     cout << "t3 internal df size after running: " << t3->getOutputs().at(0)->size() << endl;
-//    while (true){
-//        int i = 0;
-//    }
-
+    // while (true){
+    //     int i = 0;
+    // }
 }
 
 void testeTransformer(int nThreads = 1){
@@ -966,7 +1051,7 @@ void testeTransformer(int nThreads = 1){
     //             Definições de cada bloco           //
     //================================================//
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
-    auto e0 = std::make_shared<Extractor>();
+    auto e0 = std::make_shared<ExtractorFile>();
     e0->addOutput(dfOutE);
     e0->addRepo(inputRepository);
 
@@ -1018,15 +1103,14 @@ void testeTransformer(int nThreads = 1){
 
 }
 
-
 void testeBatch() {
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
 
-    DataFrame df;
-    df.addColumn<string>("nome");
-    df.addColumn<int>("idade");
-    df.addColumn<int>("ano");
-    df.addColumn<double>("salario");
+    std::shared_ptr<DataFrame> df = std::make_shared<DataFrame>();
+    df->addColumn<string>("nome");
+    df->addColumn<int>("idade");
+    df->addColumn<int>("ano");
+    df->addColumn<double>("salario");
 
     // while (true) {
     //     auto line = inputRepository->getRow();
@@ -1038,26 +1122,57 @@ void testeBatch() {
         auto batch = inputRepository->getBatch();
         auto parsed = inputRepository->parseBatch(batch);
         for (auto& row : parsed) {
-            df.addRow(row);
+            df->addRow(row);
         }
         if (!inputRepository->hasNext()) { break; }
     }
 
-    cout << df.toString() << endl;
-    cout << df.size() << endl;
+    cout << df->toString() << endl;
+    cout << df->size() << endl;
     
-    // auto batch = inputRepository->getBatch();
-    // auto parsed = inputRepository->parseBatch(batch);
-    // for (auto& row : parsed) {
-    //     df.addRow(row);
-    // }
-    // batch = inputRepository->getBatch();
-    // parsed = inputRepository->parseBatch(batch);
-    // for (auto& row : parsed) {
-    //     df.addRow(row);
-    // }
+    SQLiteRepository* repo = new SQLiteRepository("data/teste_sql.db");
+    repo->setTable("sql_table");
 
-    // cout << "DataFrame after adding a new row:\n" << df.toString(1000) << endl;
+    std::string row;
+
+    row = repo->getRow();
+    auto parsedRow = repo->parseRow(row);
+    for (auto& col : parsedRow) {
+        cout << col << " ";
+    }
+
+    auto values = repo->serializeBatch({{"1", "2", "3"},
+                                        {"3", "2", "1"},
+                                        {"3", "3", "3"}});
+
+    repo->appendStr(values);
+
+    repo->createTable("teste2", "ID INTEGER,"
+                                "NAME TEXT,"
+                                "AGE INTEGER");
+
+    auto df2 = df->emptyCopy();
+    std::cout << df2->toString() << std::endl;
+
+    MemoryRepository* memRepo = new MemoryRepository(df);
+    MemoryRepository* memRepo2 = new MemoryRepository(df2);
+
+    auto e0 = std::make_shared<ExtractorMemory>();
+    e0->addOutput(df->emptyCopy());
+    e0->addRepo(memRepo);
+
+    auto l0 = std::make_shared<LoaderMemory>(0);
+    l0->addRepo(memRepo2);
+
+    e0->addNext(l0, {1});
+
+    
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
+    
+    trigger.start(2);
+
+    std::cout << df2->toString() << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -1070,7 +1185,7 @@ int main(int argc, char *argv[]) {
     //testExtractorAndLoader();
     //testeTransformer(3);
     // testeGeralEmap(4);
-    // testeBatch();
+    testeBatch();
     // testLoaderSQL();
 
     // testeGeralEmap(1);

@@ -1,8 +1,7 @@
-
-#include "datarepository.h"
-#include "types.h"
-#include <sstream>
 #include <iostream>
+
+#include "types.h"
+#include "datarepository.h"
 
 FileRepository::FileRepository(const std::string& fname,
                                const std::string& sep,
@@ -14,6 +13,16 @@ FileRepository::FileRepository(const std::string& fname,
                                  totalLines(0) {
 
     buffer.resize(chunkSize);
+    open();
+}
+
+void FileRepository::FileRepository::open() {
+    if (inFile.is_open()) {
+        inFile.close();
+    }
+    if (outFile.is_open()) {
+        outFile.close();
+    }
     outFile.open(fileName, std::ios::app | std::ios::out);
     inFile.open(fileName);
     if (!inFile.is_open() || !outFile.is_open()) {
@@ -22,6 +31,7 @@ FileRepository::FileRepository(const std::string& fname,
     if (hasHeader) {
         std::getline(inFile, currLine);
     }
+    return;
 }
 
 FileRepository::~FileRepository() {
@@ -70,7 +80,7 @@ std::string FileRepository::getBatch() {
     return chunkData;
 }
 
-void FileRepository::appendRow(const DataRow& data) {
+void FileRepository::appendStr(const std::string& data) {
     if (!outFile.is_open()) {
         throw std::runtime_error("Failed opening file: " + fileName);
     }
@@ -93,7 +103,22 @@ void FileRepository::appendHeader(const std::vector<std::string>& data) {
     appendRow(data);
 }
 
-StrRow FileRepository::parseRow(const DataRow& line) const {
+std::string FileRepository::serializeBatch(const std::vector<StrRow>& data) {
+    std::string values;
+    for (const auto& row : data) {
+        for (size_t i = 0; i < row.size(); ++i) {
+            values += row[i];
+            if (i < row.size() - 1) {
+                values += ",";
+            }
+        }
+        values += "\n";
+    }
+    values.pop_back();
+    return values;
+}
+
+StrRow FileRepository::parseRow(const DataRow& line) {
     StrRow parsedRow;
     parsedRow.reserve(3); /// TODO: Adicionar um parametro pro tamanho
 
@@ -108,7 +133,7 @@ StrRow FileRepository::parseRow(const DataRow& line) const {
     return parsedRow;
 }
 
-std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) const {
+std::vector<StrRow> FileRepository::parseBatch(const std::string& batch) {
     std::vector<StrRow> rows;
     StrRow row;
 

@@ -5,6 +5,7 @@ tests
 .venv
 .vscode
 .github
+.cache
 data/output*
 data/outputs/*
 data/mock_emap.csv
