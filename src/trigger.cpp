@@ -41,8 +41,13 @@ void Trigger::orchestratePipelineMonoThread() {
 
         // Executa a tarefa
         // std::cout << "(1)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
+
+        auto start = std::chrono::high_resolution_clock::now();
         task->executeMonoThread();
         task->finishExecution();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Tempo de execução do bloco " << task->getTaskName() << ": " << elapsed.count() << " milissegundos.\n";
         // std::cout << "(2)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
 
         // Adiciona as próximas tarefas à fila
@@ -350,6 +355,7 @@ struct ExecGroup {
     std::shared_ptr<std::vector<std::atomic<bool>>> flags;
     std::vector<std::thread> threads;
     std::vector<bool> joined;
+    std::chrono::high_resolution_clock::time_point start;
 };
 
 void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
@@ -421,7 +427,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
                 // continue;
                 crrTaskThreadsNum = 1;
             }
-
+            auto start = std::chrono::high_resolution_clock::now();
             auto flags = std::make_shared<std::vector<std::atomic<bool>>>(crrTaskThreadsNum);
             for (auto &f : *flags) f.store(false, std::memory_order_relaxed);
 
@@ -441,7 +447,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
 
             // registra o grupo ativo
             activeGroups.push_back(
-                ExecGroup{crrNodeTask.task, flags, std::move(threadsList), std::move(crrJoined)}
+                ExecGroup{crrNodeTask.task, flags, std::move(threadsList), std::move(crrJoined), start}
             );
 
             usedThreads += crrTaskThreadsNum;
@@ -474,7 +480,9 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             if (allJoined) {
                 // finaliza a Task
                 group.task->finishExecution();
-
+                auto end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double, std::milli> elapsed = end - group.start;
+                std::cout << "Tempo de execução do bloco " << group.task->getTaskName() << ": " << elapsed.count() << " milissegundos.\n";
                 // enfileira nextTasks (leva em conta dependências)
                 for (auto& nxt : group.task->getNextTasks()) {
                     nxt->incrementExecutedPreviousTasks();
