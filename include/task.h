@@ -117,7 +117,7 @@ private:
 
 class Loader : public Task {
 public:
-    Loader(): repoMutex(), inputIndex(0) {};
+    Loader(int inputDFIndex): repoMutex(), inputIndex(inputDFIndex) {};
     virtual ~Loader() = default;
 
     void addRepo(FileRepository* repo){ repository = repo;};
