@@ -37,7 +37,7 @@ public:
         int pSaldo  = inUsers->getColumn("saldo")                ->getPosition();
         int pPix    = inUsers->getColumn("limite_PIX")           ->getPosition();
         int pTed    = inUsers->getColumn("limite_TED")           ->getPosition();
-        int pCre    = inUsers->getColumn("limite_CREDITO")           ->getPosition();
+        int pCre    = inUsers->getColumn("limite_CREDITO")       ->getPosition();
         int pBol    = inUsers->getColumn("limite_Boleto")        ->getPosition();
         int pRegU   = inUsers->getColumn("id_regiao")            ->getPosition();
 
@@ -471,20 +471,20 @@ public:
     void transform(std::vector<DataFramePtr>& outputs,
                     const std::vector<DataFrameWithIndexes>& inputs) override {
         if (inputs.size() < 2) return;
-        auto inDF = inputs[0].second;   // T3
+        auto inDF    = inputs[0].second;   // T3
         auto inAprov = inputs[1].second;   // T8
         auto out     = outputs[0];         // dfT9
-
         for (int idx : inputs[0].first) {
             StrRow row = inDF->getRow(idx);
             std::string aprovT3 = row.back();
             std::string aprovT8 = inAprov->getRow(idx)[1];
             
             row.pop_back();
-            if (row.back() != aprovT8) row.push_back("0");
-        
-            std::lock_guard<std::mutex> lk(writeMtx);
-            out->addRow(row);
+            if (aprovT3 != aprovT8) row.push_back("0");
+            {
+                std::lock_guard<std::mutex> lk(writeMtx);
+                out->addRow(row);
+            }
         }
     }   
 };
@@ -692,6 +692,7 @@ void testePipelineTransacoes(int nThreads = 2) {
     t4->addNext(t5, {1});
 
     t3->addNext(l6, {1});
+    t3->addNext(t9, {1});
 
     t5->addNext(t8, {1});  
     t6->addNext(t8, {1});  
