@@ -414,10 +414,12 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             else {
                 crrTaskThreadsNum = 1;
             }
+
             crrTaskThreadsNum = std::min(crrTaskThreadsNum, availableThreads);
             if(crrTaskThreadsNum <= 0) {
                 std::cout << "Número de threads inválido para a tarefa: " << crrTaskName << std::endl;
-                continue;
+                // continue;
+                crrTaskThreadsNum = 1;
             }
 
             auto flags = std::make_shared<std::vector<std::atomic<bool>>>(crrTaskThreadsNum);
