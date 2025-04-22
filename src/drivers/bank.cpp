@@ -915,7 +915,11 @@ void testePipelineTransacoes(int nThreads = 8) {
     std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 }
 
-int main() {
-    testePipelineTransacoes(8);
+int main(int argc, char *argv[]) {
+    int nThreads = 1;
+    if (argc > 1) {
+        nThreads = std::stoi(argv[1]);
+    }
+    testePipelineTransacoes(nThreads);
     return 0;
 }
