@@ -420,7 +420,7 @@ public:
                   ? totals[n/2]
                   : (totals[n/2 - 1] + totals[n/2]) / 2.0;
         }
-
+        //tau = 0;
         // 2) posições e ponteiros de saída
         int pId      = dfVal->getColumn("id_transacao")->getPosition();
         auto outMain = outputs[0];
@@ -477,9 +477,9 @@ public:
         for (int idx : inputs[0].first) {
             StrRow row = inDF->getRow(idx);
             std::string aprovT3 = row.back();
-            std::string aprovT8 = inAprov->getRow(idx)[1];
+            std::string aprovT8 = inAprov->getRow(idx).back();
             
-            
+            //std::cout << aprovT3 << aprovT8 << std::endl;
             if (aprovT3 != aprovT8){
                 row.pop_back();
                 row.push_back("0");
