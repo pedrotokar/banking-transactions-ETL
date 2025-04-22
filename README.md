@@ -70,6 +70,26 @@ usar o comando:
 $ make bank
 ```
 
+Esse comando compila o código C++ e executa a pipeline de exemplo.
+
+Caso queira apenas compilar o código, use o comando:
+
+```bash
+$ make buildbank
+```
+
+Após executar o comando pela primeira vez, para testar com números diferentes de threads,
+basta usar o comando:
+
+```bash
+$./bankETL <num_threads>
+```
+
+onde `<num_threads>` é o número de threads que você deseja usar para executar a
+pipeline. O número de threads padrão é 1.
+
+Ex: `./bankETL 4` executa a pipeline com 4 threads.
+
 Para ver as análises resultantes da pipeline, abra o arquivo `score_analysis.ipynb`.
 
 ## Organização do repositório
