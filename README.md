@@ -47,7 +47,7 @@ cd Banking-Transactions-ETL
 ```
 
 Nosso trabalho conta com o comando `make` para gerenciar as compilações. Atualmente,
-a pipeline do banco depende de arquivos csv e arquivos .db. Para gerar esses
+a pipeline do banco depende de arquivos `.csv` e arquivos `.db`. Para gerar esses
 arquivos, primeiro é necessário baixar as bibliotecas Python necessárias
 (de preferência em um ambiente virtual):
 
@@ -61,7 +61,9 @@ Após baixá-las, basta usar o comando:
 $ make csvgen
 ```
 
-Para executar a pipeline de exemplo e gerar os arquivos de output, é necessário
+Se tudo ocorrer corretamente, após usar esse comando os arquivos `.csv` e `.db`
+(banco de dados SQLite) necessários para a execução estarão disponíveis na pasta
+data. Para executar a pipeline de exemplo e gerar os arquivos de output, é necessário
 usar o comando:
 
 ```bash
@@ -85,3 +87,14 @@ definidas no projeto.
 - `scripts`: contém scripts shell usados no processo de compilação.
 
 - `src`: contém o código fonte do projeto.
+
+## Sobre o balanceamento de carga da biblioteca.
+
+Nossa biblioteca utiliza uma abordagem "estática" para determinação de como balancear
+a pipeline para aproveitar melhor os recursos do computador do usuário. Ao declarar
+as operações e blocos da pipeline, o usuário pode definir parâmetros, como complexidade
+estimada, para informar a pipeline de como se comportam as operações.
+
+Dessa forma, um algorítmo pode ser executado no DAG para determinar, de antemão,
+uma distribuição de threads para cada etapa que espera-se minimizar o tempo total
+de execução.
