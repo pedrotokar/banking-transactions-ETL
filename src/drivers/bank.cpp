@@ -916,6 +916,6 @@ void testePipelineTransacoes(int nThreads = 8) {
 }
 
 int main() {
-    testePipelineTransacoes();
+    testePipelineTransacoes(8);
     return 0;
 }

@@ -65,7 +65,7 @@ public:
     
     ~FileRepository() override;
 
-    void open();
+    void open() override;
 
     std::string getRow() override;
     std::string getBatch() override;
@@ -111,7 +111,7 @@ public:
     SQLiteRepository(const std::string& dbPath);
     ~SQLiteRepository();
 
-    void open();
+    void open() override;
 
     void prepareSelect();
 
