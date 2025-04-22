@@ -5,9 +5,11 @@
 #include <string>
 #include <fstream>
 #include <stdexcept>
+#include <memory>
 
 #include <sqlite3.h>
 
+#include "dataframe.h"
 #include "types.h"
 
 using DataRow = std::string;
@@ -16,17 +18,17 @@ class DataRepository {
 public:
     virtual ~DataRepository() = default;
 
-    virtual std::string getRow() = 0;
-    virtual std::string getBatch() = 0;
+    virtual std::string getRow() { return ""; };
+    virtual std::string getBatch() { return ""; };
 
-    virtual StrRow parseRow(const std::string& line) = 0;
-    virtual std::vector<StrRow> parseBatch(const std::string& batch) = 0;
+    virtual StrRow parseRow(const std::string& line) { return {}; };
+    virtual std::vector<StrRow> parseBatch(const std::string& batch) { return {}; };
 
-    virtual void appendStr(const std::string& data) = 0;
-    virtual void appendRow(const std::vector<std::string>& data) = 0;
-    virtual void appendHeader(const std::vector<std::string>& data) = 0;
+    virtual void appendStr(const std::string& data) {};
+    virtual void appendRow(const std::vector<std::string>& data) {};
+    virtual void appendHeader(const std::vector<std::string>& data) {};
 
-    virtual std::string serializeBatch(const std::vector<StrRow>& data) = 0;
+    virtual std::string serializeBatch(const std::vector<StrRow>& data) { return ""; };
 
     virtual bool hasNext() const = 0;
     
@@ -133,6 +135,35 @@ public:
     void resetReader() override;
     void clear() override;
     void close() override;
+};
+
+
+class MemoryRepository : public DataRepository {
+private:
+    std::shared_ptr<DataFrame> df;
+    size_t batchSize = 750;
+    size_t currIdx = 0;
+    bool done = false;
+
+    std::vector<StrRow> buffer;
+public:
+    MemoryRepository(std::shared_ptr<DataFrame> dataframe);
+    ~MemoryRepository();
+
+    std::string getRow() override;
+
+    StrRow parseRow(const std::string& line) override;
+
+    std::vector<StrRow> parseBatch(const std::string& batch) override;
+
+    void appendRow(const std::vector<std::string>& data) override;
+
+    void appendStr(const std::string& data) override;
+
+    std::string serializeBatch(const std::vector<StrRow>& data) override;
+
+    bool hasNext() const override;
+    void clear() override;
 };
     
 #endif // DATAREPOSITORY_H

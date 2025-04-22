@@ -1100,11 +1100,11 @@ void testeTransformer(int nThreads = 1){
 void testeBatch() {
     FileRepository* inputRepository = new FileRepository("data/mock_emap.csv", ",", true);
 
-    DataFrame df;
-    df.addColumn<string>("nome");
-    df.addColumn<int>("idade");
-    df.addColumn<int>("ano");
-    df.addColumn<double>("salario");
+    std::shared_ptr<DataFrame> df = std::make_shared<DataFrame>();
+    df->addColumn<string>("nome");
+    df->addColumn<int>("idade");
+    df->addColumn<int>("ano");
+    df->addColumn<double>("salario");
 
     // while (true) {
     //     auto line = inputRepository->getRow();
@@ -1116,14 +1116,13 @@ void testeBatch() {
         auto batch = inputRepository->getBatch();
         auto parsed = inputRepository->parseBatch(batch);
         for (auto& row : parsed) {
-            df.addRow(row);
+            df->addRow(row);
         }
         if (!inputRepository->hasNext()) { break; }
     }
 
-    cout << df.toString() << endl;
-    cout << df.size() << endl;
-    
+    cout << df->toString() << endl;
+    cout << df->size() << endl;
     
     SQLiteRepository* repo = new SQLiteRepository("data/teste_sql.db");
     repo->setTable("sql_table");
@@ -1145,6 +1144,29 @@ void testeBatch() {
     repo->createTable("teste2", "ID INTEGER,"
                                 "NAME TEXT,"
                                 "AGE INTEGER");
+
+    auto df2 = df->emptyCopy();
+    std::cout << df2->toString() << std::endl;
+
+    MemoryRepository* memRepo = new MemoryRepository(df);
+    MemoryRepository* memRepo2 = new MemoryRepository(df2);
+
+    auto e0 = std::make_shared<ExtractorMemory>();
+    e0->addOutput(df->emptyCopy());
+    e0->addRepo(memRepo);
+
+    auto l0 = std::make_shared<LoaderMemory>();
+    l0->addRepo(memRepo2);
+
+    e0->addNext(l0, {1});
+
+    
+    RequestTrigger trigger;
+    trigger.addExtractor(e0);
+    
+    trigger.start(2);
+
+    std::cout << df2->toString() << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -1158,11 +1180,11 @@ int main(int argc, char *argv[]) {
     //testeTransformer(3);
     // testeGeralEmap(4);
     testeBatch();
-    testLoaderSQL();
+    // testLoaderSQL();
 
     //testeGeralEmap(1);
 
-    testeGeralEmap(10);
+    // testeGeralEmap(10);
 
 
     auto end = std::chrono::high_resolution_clock::now();

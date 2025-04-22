@@ -170,6 +170,13 @@ private:
     SQLiteRepository* repository;
 };
 
+class ExtractorMemory : public Extractor {
+public:
+    virtual ~ExtractorMemory() = default;
+private:
+    MemoryRepository* repository;
+};
+
 
 class Loader : public Task {
 public:
@@ -214,6 +221,14 @@ public:
 
 private:
     SQLiteRepository* repository;
+};
+
+class LoaderMemory : public Loader {
+public: 
+    virtual ~LoaderMemory() = default;
+
+private:
+    MemoryRepository* repository;
 };
 
 #endif
