@@ -276,7 +276,7 @@ void Extractor::decreaseConsumingCounter(){
 }
 
 void Extractor::executeMonoThread(){
-    std::cout << "Executando extrator sem paralelizar" << std::endl;
+    // std::cout << "Executando extrator sem paralelizar" << std::endl;
     // Percorre toda a base de dados
     int i = 0;
     while (true) {
@@ -303,7 +303,7 @@ std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vect
         runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
     }
     else{
-        std::cout << "Executando extrator com " << numThreads << " threads" << std::endl;
+        // std::cout << "Executando extrator com " << numThreads << " threads" << std::endl;
         maxBufferSize = numThreads * numThreads;
 
         runningThreads.emplace_back(&Extractor::producer, this, ref(completedThreads), 0,  ref(orchestratorCv), ref(orchestratorMutex));
@@ -420,24 +420,20 @@ std::vector<DataFrameWithIndexes> Loader::getInput(int numThreads) {
 
 void Loader::executeMonoThread(){
     repository->open();
-    std::cout << "Executando loader sem paralelizar" << std::endl;
-    if(true){ //Tenho só que colocar linha por cima?
-        std::vector<DataFrameWithIndexes> inputs = getInput(1);
-        if(true){ //Tenho que apagar o repositório?
-            repository->clear();
-            StrRow header = inputs.at(0).second->getHeader();
-            repository->appendHeader(header);
-        }
-        std::shared_ptr<DataFrame> dfInput = inputs[0].second;
-        for (auto i: inputs[0].first) {
-            // Pega cada linha do DF
-            std::vector<std::string> row = dfInput->getRow(i);
-            // Adiciona a linha ao repositório
-            repository->appendRow(row);
-        }
-    } else {
-        //Aqui vai entrar a lógica SINGLETHREADED para atualizar as linhas.
-        std::cout << "guilherme" << std::endl;
+    
+    std::vector<DataFrameWithIndexes> inputs = getInput(1);
+
+    if(clearRepo) {
+        repository->clear();
+        StrRow header = inputs.at(0).second->getHeader();
+        repository->appendHeader(header);
+    }
+    std::shared_ptr<DataFrame> dfInput = inputs[0].second;
+    for (auto i: inputs[0].first) {
+        // Pega cada linha do DF
+        std::vector<std::string> row = dfInput->getRow(i);
+        // Adiciona a linha ao repositório
+        repository->appendRow(row);
     }
 }
 
@@ -495,50 +491,3 @@ void Loader::finishExecution() {
     }
     cntExecutedPreviousTasks = 0;
 }
-
-// void Loader::producer() {
-//     int i = 0;
-//     int inputSize = dfInput->size();
-//     while (true) {
-//         // Verifica se terminou
-//         if (i == inputSize) break;
-//
-//         // Pega cada linha do DF
-//         std::vector<std::string> row = dfInput->getRow(i);
-//         i++;
-//
-//         // Aguarda caso o buffer esteja cheio
-//         std::unique_lock<std::mutex> lock(bufferMutex);
-//         cv.wait(lock, [this] { return buffer.size() < maxBufferSize; });
-//         // Adiciona a linha ao buffer
-//         buffer.push(row);
-//
-//         // Notifica aos consumidores
-//         cv.notify_all();
-//    };
-
-// void Loader::consumer() {
-//     while (true) {
-//         std::unique_lock<std::mutex> lock(bufferMutex);
-//
-//         // Aguarda até que o buffer não esteja vazio enquanto há produção
-//         cv.wait(lock, [this] { return !buffer.empty() || endProduction; });
-//
-//         // Verifica se terminou o serviço
-//         if (buffer.empty() && endProduction) break;
-//
-//         // Pega o primeira linha no buffer
-//         StrRow row = buffer.front();
-//         buffer.pop();
-//
-//         // Libera o mutex antes de acessar o repositório
-//         lock.unlock();
-//
-//         // Adiciona o dado processado ao repositório
-//         {
-//             std::lock_guard<std::mutex> dfLock(repoMutex);
-//             repository->appendRow(row);
-//         }
-//         cv.notify_all();
-//     }
-// }

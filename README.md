@@ -47,7 +47,7 @@ cd Banking-Transactions-ETL
 ```
 
 Nosso trabalho conta com o comando `make` para gerenciar as compilações. Atualmente,
-a pipeline de exemplo que demonstra as funcionalidades do sistema depende de um
+a pipeline do banco depende de um
 arquivo csv. Para gerar esse arquivo, primeiro é necessário baixar as bibliotecas
 python necessárias (de preferência em um ambiente virtual):
 
@@ -61,17 +61,20 @@ Após baixá-las, basta usar o comando:
 $ make csvgen
 ```
 
-Para executar a pipeline de exemplo por cima dos dados gerados e ver os outputs
-informativos, é necessário usar o comando:
+Para executar a pipeline de exemplo e fazer outputs é necessário usar o comando:
 
 ```bash
-$ make all
+$ make bank
 ```
+
+Para ver as análises resultantes da pipeline, abra o arquivo `summary_score_analisys.ipynb`.
 
 ## Organização do repositório
 
 - `data`: contém os arquivos csv que são usados para a pipeline de exemplo, além
 de suas saídas.
+
+- `output`: contém os arquivos resultantes da pipeline.
 
 - `extras`: contém o código python para a geração do csv para a pipeline de exemplo.
 

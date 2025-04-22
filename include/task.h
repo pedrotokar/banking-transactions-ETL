@@ -184,8 +184,8 @@ private:
 
 class Loader : public Task {
 public:
-    Loader(): repoMutex(), inputIndex(0) {};
-    Loader(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
+    Loader(): repoMutex(), inputIndex(0), clearRepo(true) {};
+    Loader(int inputDFIndex, bool clearRepository): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepository) {};
     virtual ~Loader() = default;
 
     //Setter específico do loader
@@ -215,7 +215,8 @@ protected:
 
 class LoaderFile : public Loader {
 public: 
-    LoaderFile(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
+    LoaderFile(int inputDFIndex, bool clearRepository)
+        : Loader(inputDFIndex, clearRepository){};
     virtual ~LoaderFile() = default;
 
 private:
@@ -227,7 +228,8 @@ private:
     
 class LoaderSQLite : public Loader {
 public: 
-    LoaderSQLite(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
+    LoaderSQLite(int inputDFIndex, bool clearRepository)
+        : Loader(inputDFIndex, clearRepository){};
     virtual ~LoaderSQLite() = default;
 
 private:
@@ -239,7 +241,8 @@ private:
 
 class LoaderMemory : public Loader {
 public: 
-    LoaderMemory(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
+    LoaderMemory(int inputDFIndex, bool clearRepository)
+        : Loader(inputDFIndex, clearRepository){};
     virtual ~LoaderMemory() = default;
 
 private:
