@@ -434,7 +434,7 @@ public:
             double sH    = dfHor->getElement<double>(idx, pScoreH);
             double sR    = dfReg->getElement<double>(idx, pScoreR);
             double total = sV + sH + sR;
-            int aprov    = (total > tau) ? 1 : 0;
+            int aprov    = (total > tau*0.7) ? 1 : 0;
 
             {
                 std::vector<std::any> row = { trxId, sV, sH, sR, aprov };
@@ -479,8 +479,12 @@ public:
             std::string aprovT3 = row.back();
             std::string aprovT8 = inAprov->getRow(idx)[1];
             
-            row.pop_back();
-            if (aprovT3 != aprovT8) row.push_back("0");
+            
+            if (aprovT3 != aprovT8){
+                row.pop_back();
+                row.push_back("0");
+            }
+
             {
                 std::lock_guard<std::mutex> lk(writeMtx);
                 out->addRow(row);
@@ -489,6 +493,131 @@ public:
     }   
 };
 
+class T10Transformer final : public Transformer {
+    private:
+        std::mutex writeMtx;
+    public:
+        void transform(std::vector<DataFramePtr>& outputs,
+                       const std::vector<DataFrameWithIndexes>& inputs) override
+        {
+            if (inputs.empty()) return;
+            auto in  = inputs[0].second;   // dfT9
+            auto out = outputs[0];         // dfT10
+    
+            // posições das colunas em dfT9
+            int pUser  = in->getColumn("id_usuario_pagador")->getPosition();
+            int pVal   = in->getColumn("valor_transacao")     ->getPosition();
+            int pSaldo = in->getColumn("saldo")               ->getPosition();
+            int pApr   = in->getColumn("aprovacao")           ->getPosition();
+    
+            // 1) acumula somatório de valor e captura o saldo por usuário
+            std::unordered_map<std::string, double> sumMap;
+            std::unordered_map<std::string, double> balMap;
+            for (size_t r = 0; r < in->size(); ++r) {
+                auto uid = in->getElement<std::string>(r, pUser);
+                double v = in->getElement<double>     (r, pVal);
+                double s = in->getElement<double>     (r, pSaldo);
+                sumMap[uid] += v;
+                balMap[uid]  = s;
+            }
+            //int counter = 0;
+            // 2) para cada linha de entrada, decide aprovação em bloco
+            for (int idx : inputs[0].first) {
+                auto row = in->getRow(idx);
+                auto uid = row[pUser];
+    
+                // se somatório > saldo, reprova todas as transações deste usuário
+                if (sumMap[uid] > balMap[uid]) {
+                    row[pApr] = "0";
+                    //counter++;
+                }
+    
+                std::lock_guard<std::mutex> lk(writeMtx);
+                out->addRow(row);
+            }
+            //std::cout << "Total de transações reprovadas: " << counter << std::endl;
+        }
+    };
+
+    class T11Transformer final : public Transformer {
+        private:
+            std::mutex writeMtx;
+        public:
+            void transform(std::vector<DataFramePtr>& outputs,
+                           const std::vector<DataFrameWithIndexes>& inputs) override
+            {
+                if (inputs.empty()) return;
+                auto in        = inputs[0].second;   // dfT10
+                auto outTrans  = outputs[0];         // dfT11Trans
+                auto outUser   = outputs[1];         // dfT11User
+        
+                // posições das colunas em dfT10
+                int pTrId    = in->getColumn("id_transacao")         ->getPosition();
+                int pUser    = in->getColumn("id_usuario_pagador")   ->getPosition();
+                int pVal     = in->getColumn("valor_transacao")      ->getPosition();
+                int pSaldo   = in->getColumn("saldo")                ->getPosition();
+                int pPixLim  = in->getColumn("limite_PIX")           ->getPosition();
+                int pTedLim  = in->getColumn("limite_TED")           ->getPosition();
+                int pCreLim  = in->getColumn("limite_CREDITO")       ->getPosition();
+                int pBolLim  = in->getColumn("limite_Boleto")        ->getPosition();
+                int pApr     = in->getColumn("aprovacao")            ->getPosition();
+                int pMod     = in->getColumn("modalidade_pagamento") ->getPosition();
+        
+                // 1) Acumula novo saldo e novo limite por usuário
+                std::unordered_map<std::string, double> balanceMap;
+                std::unordered_map<std::string, double> limitMap;
+                for (int idx : inputs[0].first) {
+                    auto uid = in->getElement<std::string>(idx, pUser);
+                    double val = in->getElement<double>(idx, pVal);
+                    int apr = in->getElement<int>(idx, pApr);
+                    std::string mod = in->getElement<std::string>(idx, pMod);
+        
+                    // inicializa, na primeira ocorrência do usuário
+                    if (balanceMap.find(uid) == balanceMap.end()) {
+                        balanceMap[uid] = in->getElement<double>(idx, pSaldo);
+                        if (mod == "PIX") {
+                            limitMap[uid] = in->getElement<double>(idx, pPixLim);
+                        } else if (mod == "TED") {
+                            limitMap[uid] = in->getElement<double>(idx, pTedLim);
+                        } else if (mod == "CREDITO") {
+                            limitMap[uid] = in->getElement<double>(idx, pCreLim);
+                        } else if (mod == "Boleto") {
+                            limitMap[uid] = in->getElement<double>(idx, pBolLim);
+                        } else {
+                            limitMap[uid] = 0.0;
+                        }
+                    }
+        
+                    if (apr == 1) {
+                        balanceMap[uid] -= val;
+                        limitMap[uid]  -= val;
+                    }
+                }
+        
+                // 2) Emite tabela de transações: (id_transacao, aprovacao)
+                for (int idx : inputs[0].first) {
+                    std::string trxId = in->getElement<std::string>(idx, pTrId);
+                    int apr = in->getElement<int>(idx, pApr);
+                    std::vector<std::any> row = { trxId, apr };
+                    {
+                        std::lock_guard<std::mutex> lk(writeMtx);
+                        outTrans->addRow(row);
+                    }
+                }
+        
+                // 3) Emite tabela de usuários: (id_usuario_pagador, novo_saldo, novo_limite)
+                for (const auto& kv : balanceMap) {
+                    const auto& uid = kv.first;
+                    double novoSaldo = kv.second;
+                    double novoLimite = limitMap[uid];
+                    std::vector<std::any> row = { uid, novoSaldo, novoLimite };
+                    {
+                        std::lock_guard<std::mutex> lk(writeMtx);
+                        outUser->addRow(row);
+                    }
+                }
+            }
+        };
 
 class PrintTransformer final : public Transformer {
 private:
@@ -594,8 +723,18 @@ void testePipelineTransacoes(int nThreads = 2) {
     dfT8Reg->addColumn<int>   ("aprovacao");
 
     auto dfT9 = dfT3->emptyCopy();
+    auto dfT10 = dfT9->emptyCopy();
 
+
+    auto dfT11Trans = std::make_shared<DataFrame>();
+    dfT11Trans->addColumn<std::string>("id_transacao");
+    dfT11Trans->addColumn<int>        ("aprovacao");
     
+    auto dfT11User  = std::make_shared<DataFrame>();
+    dfT11User->addColumn<std::string>("id_usuario_pagador");
+    dfT11User->addColumn<double>     ("saldo");
+    dfT11User->addColumn<double>     ("limite");
+
      //====================Init Triggers===========================//
 
     auto e1 = std::make_shared<Extractor>();
@@ -664,6 +803,16 @@ void testePipelineTransacoes(int nThreads = 2) {
 
     auto tp9 = std::make_shared<PrintTransformer>(">>> T9 outputs");
     t9->addNext(tp9, {1});
+
+    auto t10  = std::make_shared<T10Transformer>();
+    t10->addOutput(dfT10);
+    
+    auto tp10 = std::make_shared<PrintTransformer>(">>> T10 outputs");
+    t10->addNext(tp10, {1});
+    
+    auto t11 = std::make_shared<T11Transformer>();
+    t11->addOutput(dfT11Trans); 
+    t11->addOutput(dfT11User);   
     
     auto l6 = std::make_shared<Loader>(0);
     l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
@@ -674,6 +823,12 @@ void testePipelineTransacoes(int nThreads = 2) {
     l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
     auto l5 = std::make_shared<Loader>(3);
     l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
+
+    auto l11_1 = std::make_shared<Loader>(0);
+    l11_1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", true));
+
+    auto l11_2 = std::make_shared<Loader>(1);
+    l11_2->addRepo(new FileRepository("outputs/output_L2_usr.csv", ",", true));
 
     
     //==================== Construção dos elementod do DAG ===========================//
@@ -702,6 +857,15 @@ void testePipelineTransacoes(int nThreads = 2) {
     t8->addNext(l3, {1, 1, 1, 1}); 
     t8->addNext(l4, {1, 1, 1, 1}); 
     t8->addNext(l5, {1, 1, 1, 1});
+
+    t9->addNext(t10, {1});
+
+    t10->addNext(t11, {1});
+
+    t11->addNext(l11_1, {1,1});
+    t11->addNext(l11_2, {1,1});
+
+
 
     RequestTrigger trigger;
     trigger.addExtractor(e1);
