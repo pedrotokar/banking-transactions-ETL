@@ -47,21 +47,24 @@ public:
     virtual void finishExecution() {};
 
     // Heurística para decidir o número de threads
-    void setWeight(int w);
-    int getWeight() const;
+    // void setWeight(int w);
+    // int getWeight() const;
     
-    void setRecomendedThreadsNum(size_t numThreads);
-    size_t getRecomendedThreadsNum() const;
+    void setMaxThreadsProportion(double pThreadsNew); // 0 < p <= 1
+    double getMaxThreadsProportion() const;
     
-    void setAuxOrquestrador(int val);
-    void incrementAuxOrquestrador();
-    int getAuxOrquestrador() const;
+    // void setAuxOrquestrador(int val);
+    // void incrementAuxOrquestrador();
+    // int getAuxOrquestrador() const;
     
     void setTaskName(const std::string name);
     std::string getTaskName() const;
 
-    void setLevel(int newLevel);
-    int getLevel() const;
+    // void setLevel(int newLevel);
+    // int getLevel() const;
+
+    void setBaseWeight(int newBaseWeight);
+    int getBaseWeight() const;
 protected:
     //Vetores com as saídas e relacionamentos
     std::vector<std::shared_ptr<Task>> nextTasks;
@@ -74,11 +77,12 @@ protected:
     size_t cntExecutedPreviousTasks = 0;
 
     //Heurista para decidir numero de threads
-    size_t recomendedThreadsNum = 0;
-    int weight = 0;
-    int auxOrquestrador = 0;
+    double pThreads = 0.5;
+    // int weight = 0;
+    // int auxOrquestrador = 0;
     std::string taskName = "";
-    int taskLevel = 0;
+    // int taskLevel = 0;
+    int baseWeight = 1;
 
     //Função auxiliar para retornar uma thread executando a operação versão monothread do bloco
     void executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex,

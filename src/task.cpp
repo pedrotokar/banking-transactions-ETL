@@ -78,30 +78,33 @@ const bool Task::canBeParallel(){
     return !blockMultiThreading;
 }
 
-void Task::setWeight(int w) {
-    weight = w;
+// void Task::setWeight(int w) {
+//     weight = w;
+// }
+// int Task::getWeight() const {
+//     return weight;
+// }
+void Task::setMaxThreadsProportion(double pThreadsNew) {
+    if(pThreadsNew <= 0 || pThreadsNew > 1){
+        throw std::runtime_error("A proporcao deve ser entre 0 e 1 inclusive.");
+    }
+    pThreads = pThreadsNew;
 }
-int Task::getWeight() const {
-    return weight;
-}
-void Task::setRecomendedThreadsNum(size_t numThreads) {
-    recomendedThreadsNum = numThreads;
-}
-size_t Task::getRecomendedThreadsNum() const {
-    return recomendedThreadsNum;
-}
-
-void Task::setAuxOrquestrador(int val) {
-    auxOrquestrador = val;
-}
-
-void Task::incrementAuxOrquestrador() {
-    auxOrquestrador++;
+double Task::getMaxThreadsProportion() const {
+    return pThreads;
 }
 
-int Task::getAuxOrquestrador() const {
-    return auxOrquestrador;
-}
+// void Task::setAuxOrquestrador(int val) {
+//     auxOrquestrador = val;
+// }
+
+// void Task::incrementAuxOrquestrador() {
+//     auxOrquestrador++;
+// }
+
+// int Task::getAuxOrquestrador() const {
+//     return auxOrquestrador;
+// }
 
 void Task::setTaskName(const std::string name) {
     taskName = name;
@@ -110,12 +113,20 @@ std::string Task::getTaskName() const {
     return taskName;
 }
 
-void Task::setLevel(int newLevel) {
-    taskLevel = newLevel;
+// void Task::setLevel(int newLevel) {
+//     taskLevel = newLevel;
+// }
+
+// int Task::getLevel() const {
+//     return taskLevel;
+// }
+
+void Task::setBaseWeight(int newBaseWeight) {
+    baseWeight = newBaseWeight;
 }
 
-int Task::getLevel() const {
-    return taskLevel;
+int Task::getBaseWeight() const {
+    return baseWeight;
 }
 
 void Task::executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
@@ -435,7 +446,7 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<
     }
     else{
         repository->open();
-        std::cout << "Executando loader com " << numThreads << " threads" << std::endl;
+        std::cout << "Executando loader com " << numThreads << " threads " << taskName << std::endl;
         if(true){ //Tenho que só colocar a linha por cima?
             std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
             if(true){ //Tenho que apagar o repositório?
@@ -445,6 +456,7 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<
             }
             for (int i = 0; i < numThreads; i++) {
                 runningThreads.emplace_back(&Loader::addRows, this, inputs[i], ref(completedThreads), i, ref(orchestratorCv), ref(orchestratorMutex));
+                std::cout << "Chamei as threads" << std::endl;
             }
         } else {
             //Aqui vai entrar a lógica MULTITHREADED para atualizar linhas. Pra gerar as threads tem que usar o vetor runningThreads
@@ -461,18 +473,19 @@ void Loader::updateRepo(int numThreads) {
 void Loader::addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) {
     std::shared_ptr<DataFrame> dfInput = pair.second;
     std::vector<StrRow> rows;
-    for (int i: pair.first) {
-        // Pega cada linha do DF
-        StrRow row = dfInput->getRow(i);
-        // Adiciona as linhas ao vetor de linhas
-        rows.push_back(row);
-    }
+    if(pair.first.size() > 0){
+        for (int i: pair.first) {
+            // Pega cada linha do DF
+            StrRow row = dfInput->getRow(i);
+            // Adiciona as linhas ao vetor de linhas
+            rows.push_back(row);
+        }
+        std::string batchRows = repository->serializeBatch(rows);
 
-    std::string batchRows = repository->serializeBatch(rows);
-
-    {
-        std::lock_guard<std::mutex> lock(repoMutex);
-        repository->appendStr(batchRows);
+        {
+            std::lock_guard<std::mutex> lock(repoMutex);
+            repository->appendStr(batchRows);
+        }
     }
     completedList[tIndex].store(true, std::memory_order_release);
     {
