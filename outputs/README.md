@@ -1,0 +1,1 @@
+# Os outputs da pipeline do banco virão para esta pasta!
