@@ -636,7 +636,7 @@ public:
     }
 };
 
-void testePipelineTransacoes(int nThreads = 2) {
+void testePipelineTransacoes(int nThreads = 8) {
 
     //====================Construção dos DFS===========================//
 
@@ -758,57 +758,57 @@ void testePipelineTransacoes(int nThreads = 2) {
     t1->addOutput(dfT1);
     t1->setTaskName("t1");
 
-    auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
-    t1->addNext(tp1, {1});
-    tp1->setTaskName("tp1");
+    // auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
+    // t1->addNext(tp1, {1});
+    // tp1->setTaskName("tp1");
 
     auto t2 = std::make_shared<T2Transformer>();
     t2->addOutput(dfT2);
     t2->setTaskName("t2");
 
-    auto tp2 = std::make_shared<PrintTransformer>(">>> T2 outputs");
-    t2->addNext(tp2, {1});
-    tp2->setTaskName("tp2");
+    // auto tp2 = std::make_shared<PrintTransformer>(">>> T2 outputs");
+    // t2->addNext(tp2, {1});
+    // tp2->setTaskName("tp2");
 
     auto t3 = std::make_shared<T3Transformer>();
     t3->addOutput(dfT3);
     t3->setTaskName("t3");
 
-    auto tp3 = std::make_shared<PrintTransformer>(">>> T3 outputs");
-    t3->addNext(tp3, {1});
-    tp3->setTaskName("tp3");
+    // auto tp3 = std::make_shared<PrintTransformer>(">>> T3 outputs");
+    // t3->addNext(tp3, {1});
+    // // tp3->setTaskName("tp3");
 
     auto t4 = std::make_shared<T4Transformer>();
     t4->addOutput(dfT4);
     t4->setTaskName("t4");
 
-    auto tp4 = std::make_shared<PrintTransformer>(">>> T4 outputs");
-    t4->addNext(tp4, {1});
-    t4->setTaskName("tp4");
+    // auto tp4 = std::make_shared<PrintTransformer>(">>> T4 outputs");
+    // t4->addNext(tp4, {1});
+    // t4->setTaskName("tp4");
 
     auto t5 = std::make_shared<T5Transformer>();
     t5->addOutput(dfT5);
     t5->setTaskName("t5");
 
-    auto tp5 = std::make_shared<PrintTransformer>(">>> T5 outputs");
-    t5->addNext(tp5, {1});
-    tp5->setTaskName("tp5");
+    // auto tp5 = std::make_shared<PrintTransformer>(">>> T5 outputs");
+    // t5->addNext(tp5, {1});
+    // tp5->setTaskName("tp5");
 
     auto t6 = std::make_shared<T6Transformer>();
     t6->addOutput(dfT6);
     t6->setTaskName("t6");
 
-    auto tp6 = std::make_shared<PrintTransformer>(">>> T6 outputs");
-    t6->addNext(tp6, {1});
-    tp6->setTaskName("tp6");
+    // auto tp6 = std::make_shared<PrintTransformer>(">>> T6 outputs");
+    // t6->addNext(tp6, {1});
+    // tp6->setTaskName("tp6");
 
     auto t7 = std::make_shared<T7Transformer>();
     t7->addOutput(dfT7);
     t7->setTaskName("t7");
 
-    auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
-    t7->addNext(tp7, {1});
-    tp7->setTaskName("tp7");
+    // auto tp7 = std::make_shared<PrintTransformer>(">>> T7 outputs");
+    // t7->addNext(tp7, {1});
+    // tp7->setTaskName("tp7");
 
     auto t8 = std::make_shared<T8Transformer>();
     t8->addOutput(dfT8Main);
@@ -821,17 +821,17 @@ void testePipelineTransacoes(int nThreads = 2) {
     t9->addOutput(dfT9);
     t9->setTaskName("t9");
 
-    auto tp9 = std::make_shared<PrintTransformer>(">>> T9 outputs");
-    t9->addNext(tp9, {1});
-    tp9->setTaskName("tp9");
+    // auto tp9 = std::make_shared<PrintTransformer>(">>> T9 outputs");
+    // t9->addNext(tp9, {1});
+    // tp9->setTaskName("tp9");
 
     auto t10  = std::make_shared<T10Transformer>();
     t10->addOutput(dfT10);
     t10->setTaskName("t10");
     
-    auto tp10 = std::make_shared<PrintTransformer>(">>> T10 outputs");
-    t10->addNext(tp10, {1});
-    tp10->setTaskName("tp10");
+    // auto tp10 = std::make_shared<PrintTransformer>(">>> T10 outputs");
+    // t10->addNext(tp10, {1});
+    // tp10->setTaskName("tp10");
     
     auto t11 = std::make_shared<T11Transformer>();
     t11->addOutput(dfT11Trans); 
@@ -894,12 +894,17 @@ void testePipelineTransacoes(int nThreads = 2) {
     t11->addNext(l11_2, {1,1});
 
 
-
     RequestTrigger trigger;
     trigger.addExtractor(e1);
     trigger.addExtractor(e2);
     trigger.addExtractor(e3);
+
+    std::cout << "Executando com " << nThreads << " threads" << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
     trigger.start(nThreads);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 }
 
 int main() {

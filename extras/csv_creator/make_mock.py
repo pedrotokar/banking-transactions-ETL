@@ -13,8 +13,9 @@ np.random.seed(42)
 # Tamanhos de geração
 sizes = {
     #"1k": 1_000,
-    "100k": 100_000,
-    # "1M": 1_000_000
+    #"100k": 100_000,
+    "1M": 1_000_000,
+    #"3M": 3_000_000
 }
 
 payment_methods = ["PIX", "TED", "DOC", "Boleto"]

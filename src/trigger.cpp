@@ -40,10 +40,10 @@ void Trigger::orchestratePipelineMonoThread() {
         tasksQueue.pop();
 
         // Executa a tarefa
-        std::cout << "(1)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
+        // std::cout << "(1)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
         task->executeMonoThread();
         task->finishExecution();
-        std::cout << "(2)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
+        // std::cout << "(2)Tamanho do nextTasks da task atual: " << task->getNextTasks().size() << std::endl;
 
         // Adiciona as próximas tarefas à fila
         const auto& nextTasks = task->getNextTasks();
@@ -166,14 +166,14 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
         tasksQueue.push(extractor->getTaskName());
     }
 
-    std::cout << "Iniciando queue 1" << std::endl;
+    // std::cout << "Iniciando queue 1" << std::endl;
     while (!tasksQueue.empty()) {
         auto& crrTaskNode = taskMap[tasksQueue.front()];
         tasksQueue.pop();
         
         if(crrTaskNode.auxOrquestrador == 1) continue;
 
-        std::cout << "Tarefa atual: " << crrTaskNode.task->getTaskName() << std::endl;
+        // std::cout << "Tarefa atual: " << crrTaskNode.task->getTaskName() << std::endl;
         // Marca a task como visitada
         crrTaskNode.auxOrquestrador = 1;
 
@@ -206,12 +206,12 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
         crrTaskNode.sumWeight = 0;
     }
 
-    std::cout << "Iniciando queue 2" << std::endl;
+    // std::cout << "Iniciando queue 2" << std::endl;
     while(!tasksQueueReverse.empty()){
         auto& crrNodeTask = taskMap[tasksQueueReverse.front()];
         tasksQueueReverse.pop();
 
-        std::cout << "Tarefa atual: " << crrNodeTask.task->getTaskName() << std::endl;
+        // std::cout << "Tarefa atual: " << crrNodeTask.task->getTaskName() << std::endl;
 
         int crrBaseWeight = crrNodeTask.task->getBaseWeight(); // TODO: calcular essa valor com a estimativa do peso da task;
 
@@ -237,12 +237,12 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
         crrNodeTask.finalWeight = alpha*(double)crrNodeTask.cpWeight + (1.0-alpha)*(double)crrNodeTask.sumWeight/((double)crrNodeTask.numChild+1.0);
         crrNodeTask.finalWeight = std::max(crrNodeTask.finalWeight, 1.0);
 
-        std::cout << "cpWeight:  " << crrNodeTask.cpWeight
-              << "    sumWeight: " << crrNodeTask.sumWeight
-              << "    Level: "    << crrNodeTask.level
-              << "    numChild: " << crrNodeTask.numChild
-              << "    finalWeight: " << crrNodeTask.finalWeight
-              << std::endl << std::endl;
+        // std::cout << "cpWeight:  " << crrNodeTask.cpWeight
+        //       << "    sumWeight: " << crrNodeTask.sumWeight
+        //       << "    Level: "    << crrNodeTask.level
+        //       << "    numChild: " << crrNodeTask.numChild
+        //       << "    finalWeight: " << crrNodeTask.finalWeight
+        //       << std::endl << std::endl;
 
         const auto& previousTasks = crrNodeTask.task->getPreviousTasks();
 
@@ -417,7 +417,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
 
             crrTaskThreadsNum = std::min(crrTaskThreadsNum, availableThreads);
             if(crrTaskThreadsNum <= 0) {
-                std::cout << "Número de threads inválido para a tarefa: " << crrTaskName << std::endl;
+                // std::cout << "Número de threads inválido para a tarefa: " << crrTaskName << std::endl;
                 // continue;
                 crrTaskThreadsNum = 1;
             }

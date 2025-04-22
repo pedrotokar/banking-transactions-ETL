@@ -61,12 +61,13 @@ Após baixá-las, basta usar o comando:
 $ make csvgen
 ```
 
-Para executar a pipeline de exemplo e ver os outputs com as análises (calculadas com
-os dados gerados), é necessário usar o comando:
+Para executar a pipeline de exemplo e fazer outputs é necessário usar o comando:
 
 ```bash
 $ make bank
 ```
+
+Para ver as análises resultantes da pipeline, abra o arquivo `summary_score_analisys.ipynb`.
 
 ## Organização do repositório
 

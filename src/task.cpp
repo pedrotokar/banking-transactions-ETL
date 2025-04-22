@@ -276,7 +276,7 @@ void Extractor::decreaseConsumingCounter(){
 }
 
 void Extractor::executeMonoThread(){
-    std::cout << "Executando extrator sem paralelizar" << std::endl;
+    // std::cout << "Executando extrator sem paralelizar" << std::endl;
     // Percorre toda a base de dados
     int i = 0;
     while (true) {
@@ -303,7 +303,7 @@ std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vect
         runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
     }
     else{
-        std::cout << "Executando extrator com " << numThreads << " threads" << std::endl;
+        // std::cout << "Executando extrator com " << numThreads << " threads" << std::endl;
         maxBufferSize = numThreads * numThreads;
 
         runningThreads.emplace_back(&Extractor::producer, this, ref(completedThreads), 0,  ref(orchestratorCv), ref(orchestratorMutex));
@@ -420,7 +420,7 @@ std::vector<DataFrameWithIndexes> Loader::getInput(int numThreads) {
 
 void Loader::executeMonoThread(){
     repository->open();
-    std::cout << "Executando loader sem paralelizar" << std::endl;
+    // std::cout << "Executando loader sem paralelizar" << std::endl;
     if(true){ //Tenho só que colocar linha por cima?
         std::vector<DataFrameWithIndexes> inputs = getInput(1);
         if(true){ //Tenho que apagar o repositório?
@@ -450,7 +450,7 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<
     }
     else{
         repository->open();
-        std::cout << "Executando loader com " << numThreads << " threads " << taskName << std::endl;
+        // std::cout << "Executando loader com " << numThreads << " threads " << taskName << std::endl;
         if(true){ //Tenho que só colocar a linha por cima?
             std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
             if(true){ //Tenho que apagar o repositório?
