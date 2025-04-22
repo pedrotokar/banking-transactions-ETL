@@ -14,7 +14,7 @@ struct taskNode {
     int level = 0;
     int cpWeight = 0;
     int sumWeight = 0;
-    double finalWeight = 0.0;
+    double finalWeight = 0.0; // alpha * cpWeight + (1-alpha) * (sumWeight / numChild)
     int auxOrquestrador = 0;
     int numChild = 0;
 

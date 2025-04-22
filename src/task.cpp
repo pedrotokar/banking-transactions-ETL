@@ -78,30 +78,33 @@ const bool Task::canBeParallel(){
     return !blockMultiThreading;
 }
 
-void Task::setWeight(int w) {
-    weight = w;
+// void Task::setWeight(int w) {
+//     weight = w;
+// }
+// int Task::getWeight() const {
+//     return weight;
+// }
+void Task::setMaxThreadsProportion(double pThreadsNew) {
+    if(pThreadsNew <= 0 || pThreadsNew > 1){
+        throw std::runtime_error("A proporcao deve ser entre 0 e 1 inclusive.");
+    }
+    pThreads = pThreadsNew;
 }
-int Task::getWeight() const {
-    return weight;
-}
-void Task::setRecomendedThreadsNum(size_t numThreads) {
-    recomendedThreadsNum = numThreads;
-}
-size_t Task::getRecomendedThreadsNum() const {
-    return recomendedThreadsNum;
-}
-
-void Task::setAuxOrquestrador(int val) {
-    auxOrquestrador = val;
-}
-
-void Task::incrementAuxOrquestrador() {
-    auxOrquestrador++;
+double Task::getMaxThreadsProportion() const {
+    return pThreads;
 }
 
-int Task::getAuxOrquestrador() const {
-    return auxOrquestrador;
-}
+// void Task::setAuxOrquestrador(int val) {
+//     auxOrquestrador = val;
+// }
+
+// void Task::incrementAuxOrquestrador() {
+//     auxOrquestrador++;
+// }
+
+// int Task::getAuxOrquestrador() const {
+//     return auxOrquestrador;
+// }
 
 void Task::setTaskName(const std::string name) {
     taskName = name;
@@ -110,12 +113,20 @@ std::string Task::getTaskName() const {
     return taskName;
 }
 
-void Task::setLevel(int newLevel) {
-    taskLevel = newLevel;
+// void Task::setLevel(int newLevel) {
+//     taskLevel = newLevel;
+// }
+
+// int Task::getLevel() const {
+//     return taskLevel;
+// }
+
+void Task::setBaseWeight(int newBaseWeight) {
+    baseWeight = newBaseWeight;
 }
 
-int Task::getLevel() const {
-    return taskLevel;
+int Task::getBaseWeight() const {
+    return baseWeight;
 }
 
 void Task::executeMonoThreadSpecial(std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){

@@ -809,16 +809,19 @@ void testeGeralEmap(int nThreads = 1){
     auto t11 = std::make_shared<FilterDFTransformer>(t11FilterStrings);
     t11->addOutput(dfOut11);
     t11->setTaskName("t1.1");
+    t11->setMaxThreadsProportion(0.3);
 
     auto t12FilterStrings = std::vector<std::string>{"AlunoGrad", "AlunoMesc"};
     auto t12 = std::make_shared<FilterDFTransformer>(t12FilterStrings);
     t12->addOutput(dfOut12);
     t12->setTaskName("t1.2");
-    t12->blockParallel();
+    t12->setMaxThreadsProportion(0.4);
 
     auto t21 = std::make_shared<AgeSumTransformer>();
     t21->addOutput(dfOut21);
     t21->setTaskName("t2.1");
+    t21->setBaseWeight(5);
+    t21->setMaxThreadsProportion(0.6);
 
     auto t22 = std::make_shared<CounterTransformer>();
     t22->addOutput(dfOut22);
@@ -827,10 +830,13 @@ void testeGeralEmap(int nThreads = 1){
     auto t23 = std::make_shared<SalarySumTransformer>();
     t23->addOutput(dfOut23);
     t23->setTaskName("t2.3");
+    t23->setBaseWeight(2);
 
     auto t24 = std::make_shared<AgeSumTransformer>();
     t24->addOutput(dfOut24);
     t24->setTaskName("t2.4");
+    t24->setBaseWeight(5);
+    t24->setMaxThreadsProportion(0.6);
 
     auto t3 = std::make_shared<MeanTransformer>();
     t3->addOutput(dfOut3);
@@ -1085,7 +1091,7 @@ int main(int argc, char *argv[]) {
     //testeTransformer(3);
     // testeGeralEmap(1);
 
-    testeGeralEmap(10);
+    testeGeralEmap(8);
 
 
     auto end = std::chrono::high_resolution_clock::now();

@@ -1,12 +1,13 @@
 #include "trigger.hpp"
-#include <queue>
 #include <thread>
 #include <chrono>
 #include <atomic>
 #include <condition_variable>
 #include <iostream>
-#include <map>
 #include <string>
+#include <queue>
+#include <map>
+#include <set>
 
 // ##################################################################################################
 // ##################################################################################################
@@ -359,9 +360,20 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "Tempo de execução de calculateThreadsDistribution: " << elapsed.count() << " ms.\n";
 
-    std::queue<std::shared_ptr<Task>> tasksQueue;
-    for (auto& extr : vExtractors) 
-        tasksQueue.push(extr);
+    auto cmp = [this](auto const &a, auto const &b) {
+        const auto &wa = taskMap.at(a).finalWeight;
+        const auto &wb = taskMap.at(b).finalWeight;
+
+        return wa > wb || (wa == wb && taskMap.at(a).task->getTaskName() < taskMap.at(b).task->getTaskName());
+    };
+
+    // 2) Crie o set com esse comparador
+    std::set<std::string, decltype(cmp)> tasksQueue(cmp);
+
+    // std::queue<std::string> tasksQueue;
+
+    for (auto& extractor : vExtractors) 
+        tasksQueue.insert(extractor->getTaskName());
 
     std::vector<ExecGroup> activeGroups;
 
@@ -374,20 +386,37 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
     while (!tasksQueue.empty() || !activeGroups.empty()) {
         // Disparar tarefas quando houver threads disponíveis
         while (!tasksQueue.empty() && usedThreads < maxThreads) {
-            auto crrTask = tasksQueue.front();
-            tasksQueue.pop();
+            auto it = tasksQueue.begin();
+            std::string crrTaskName = *it;
+            tasksQueue.erase(it);
+
+            const auto& crrNodeTask = taskMap[crrTaskName];
+
+            const int availableThreads = maxThreads - usedThreads;
 
             // Decide quantas threads essa Task quer usar
             int crrTaskThreadsNum;
-            if(crrTask->canBeParallel()) {
-                crrTaskThreadsNum = std::min(1, maxThreads - usedThreads);
+            if(crrNodeTask.task->canBeParallel()) {
+                if(tasksQueue.empty()){
+                    crrTaskThreadsNum = std::min(availableThreads, 
+                                                 static_cast<int>(std::round(availableThreads * crrNodeTask.task->getMaxThreadsProportion()))
+                                                 );
+                }
+                else{
+                    auto itNxt = tasksQueue.begin();
+                    auto& nxtNodeTask = taskMap[*itNxt];
+
+                    double aux = crrNodeTask.finalWeight / (crrNodeTask.finalWeight + nxtNodeTask.finalWeight);
+                    crrTaskThreadsNum = static_cast<int>(std::ceil(aux * availableThreads));
+                }
             } 
             else {
                 crrTaskThreadsNum = 1;
             }
 
+            crrTaskThreadsNum = std::min(crrTaskThreadsNum, availableThreads);
             if(crrTaskThreadsNum <= 0) {
-                std::cout << "Número de threads inválido para a tarefa: " << crrTask->getTaskName() << std::endl;
+                std::cout << "Número de threads inválido para a tarefa: " << crrTaskName << std::endl;
                 continue;
             }
 
@@ -405,12 +434,12 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             //    orchestratorCv.notify_one();
             // }
 
-            auto threadsList = crrTask->executeMultiThread(crrTaskThreadsNum, (*flags), orchestratorCv, orchestratorMutex);
+            auto threadsList = crrNodeTask.task->executeMultiThread(crrTaskThreadsNum, (*flags), orchestratorCv, orchestratorMutex);
             std::vector<bool> crrJoined(crrTaskThreadsNum, false);
 
             // registra o grupo ativo
             activeGroups.push_back(
-                ExecGroup{crrTask, flags, std::move(threadsList), std::move(crrJoined)}
+                ExecGroup{crrNodeTask.task, flags, std::move(threadsList), std::move(crrJoined)}
             );
 
             usedThreads += crrTaskThreadsNum;
@@ -446,7 +475,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
                 for (auto& nxt : group.task->getNextTasks()) {
                     nxt->incrementExecutedPreviousTasks();
                     if (nxt->checkPreviousTasks())
-                        tasksQueue.push(nxt);
+                        tasksQueue.insert(nxt->getTaskName());
                 }
 
                 // remove do vector de grupos ativos
