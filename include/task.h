@@ -185,7 +185,7 @@ private:
 class Loader : public Task {
 public:
     Loader(): repoMutex(), inputIndex(0) {};
-    Loader(int inputDFIndex): repoMutex(), inputIndex(inputDFIndex) {};
+    Loader(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
     virtual ~Loader() = default;
 
     //Setter específico do loader
@@ -205,8 +205,7 @@ protected:
 
     std::mutex repoMutex;
     int inputIndex;
-
-    void updateRepo(int numThreads);
+    bool clearRepo;
 
     void addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex,
                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
@@ -216,34 +215,37 @@ protected:
 
 class LoaderFile : public Loader {
 public: 
-    LoaderFile(int inputDFIndex): repoMutex(), inputIndex(inputDFIndex) {};
+    LoaderFile(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
     virtual ~LoaderFile() = default;
 
 private:
     std::mutex repoMutex;
     int inputIndex;
+    bool clearRepo;
     FileRepository* repository;
 };
     
 class LoaderSQLite : public Loader {
 public: 
-    LoaderSQLite(int inputDFIndex): repoMutex(), inputIndex(inputDFIndex) {};
+    LoaderSQLite(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
     virtual ~LoaderSQLite() = default;
 
 private:
     std::mutex repoMutex;
     int inputIndex;
+    bool clearRepo;
     SQLiteRepository* repository;
 };
 
 class LoaderMemory : public Loader {
 public: 
-    LoaderMemory(int inputDFIndex): repoMutex(), inputIndex(inputDFIndex) {};
+    LoaderMemory(int inputDFIndex, bool clearRepo): repoMutex(), inputIndex(inputDFIndex), clearRepo(clearRepo) {};
     virtual ~LoaderMemory() = default;
 
 private:
     std::mutex repoMutex;
     int inputIndex;
+    bool clearRepo;
     MemoryRepository* repository;
 };
 

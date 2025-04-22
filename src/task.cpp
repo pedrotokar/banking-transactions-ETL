@@ -450,28 +450,19 @@ std::vector<std::thread> Loader::executeMultiThread(int numThreads, std::vector<
     }
     else{
         repository->open();
-        std::cout << "Executando loader com " << numThreads << " threads " << taskName << std::endl;
-        if(true){ //Tenho que só colocar a linha por cima?
-            std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
-            if(true){ //Tenho que apagar o repositório?
-                repository->clear();
-                StrRow header = inputs.at(0).second->getHeader();
-                repository->appendHeader(header);
-            }
-            for (int i = 0; i < numThreads; i++) {
-                runningThreads.emplace_back(&Loader::addRows, this, inputs[i], ref(completedThreads), i, ref(orchestratorCv), ref(orchestratorMutex));
-            }
-        } else {
-            //Aqui vai entrar a lógica MULTITHREADED para atualizar linhas. Pra gerar as threads tem que usar o vetor runningThreads
-            std::cout << "guilherme" << std::endl;
+        
+        std::vector<DataFrameWithIndexes> inputs = getInput(numThreads);
+        if(clearRepo){ 
+            repository->clear();
+            StrRow header = inputs.at(0).second->getHeader();
+            repository->appendHeader(header);
+        }
+        for (int i = 0; i < numThreads; i++) {
+            runningThreads.emplace_back(&Loader::addRows, this, inputs[i], ref(completedThreads), i, ref(orchestratorCv), ref(orchestratorMutex));
         }
     }
     return runningThreads;
 }
-
-void Loader::updateRepo(int numThreads) {   
-    return;    
-};
 
 void Loader::addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex, std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) {
     std::shared_ptr<DataFrame> dfInput = pair.second;

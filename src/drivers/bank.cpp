@@ -738,17 +738,17 @@ void testePipelineTransacoes(int nThreads = 2) {
 
      //====================Init Triggers===========================//
 
-    auto e1 = std::make_shared<Extractor>();
+    auto e1 = std::make_shared<ExtractorFile>();
     e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
     e1->addOutput(dfE1);
     e1->setTaskName("e1");
 
-    auto e2 = std::make_shared<Extractor>();
+    auto e2 = std::make_shared<ExtractorFile>();
     e2->addRepo(new FileRepository("data/informacoes_cadastro_100k.csv", ",", true));
     e2->addOutput(dfE2);
     e2->setTaskName("e2");
 
-    auto e3 = std::make_shared<Extractor>();
+    auto e3 = std::make_shared<ExtractorFile>();
     e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
     e3->addOutput(dfE3);
     e3->setTaskName("e3");
@@ -838,24 +838,24 @@ void testePipelineTransacoes(int nThreads = 2) {
     t11->addOutput(dfT11User);
     t11->setTaskName("t11");
     
-    auto l6 = std::make_shared<Loader>(0);
+    auto l6 = std::make_shared<LoaderFile>(0, true);
     l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
     l6->setTaskName("l6");
 
-    auto l3 = std::make_shared<Loader>(1);
+    auto l3 = std::make_shared<LoaderFile>(1, true);
     l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", true));
     l3->setTaskName("l3");
-    auto l4 = std::make_shared<Loader>(2);
+    auto l4 = std::make_shared<LoaderFile>(2, true);
     l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
     l4->setTaskName("l4");
-    auto l5 = std::make_shared<Loader>(3);
+    auto l5 = std::make_shared<LoaderFile>(3, true);
     l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
     l5->setTaskName("l5");
 
-    auto l11_1 = std::make_shared<Loader>(0);
+    auto l11_1 = std::make_shared<LoaderFile>(0, true);
     l11_1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", true));
 
-    auto l11_2 = std::make_shared<Loader>(1);
+    auto l11_2 = std::make_shared<LoaderFile>(1, false);
     l11_2->addRepo(new FileRepository("outputs/output_L2_usr.csv", ",", true));
 
     
@@ -892,8 +892,6 @@ void testePipelineTransacoes(int nThreads = 2) {
 
     t11->addNext(l11_1, {1,1});
     t11->addNext(l11_2, {1,1});
-
-
 
     RequestTrigger trigger;
     trigger.addExtractor(e1);
