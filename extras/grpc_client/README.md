@@ -37,7 +37,7 @@ O protoc gera arquivos com imports relativos que precisam ser corrigidos:
 cat ../../proto/transaction_pb2_grpc.py | grep "import transaction_pb2"
 
 # Se encontrar "import transaction_pb2", corrija para "import proto.transaction_pb2"
-sed -i '' 's/import transaction_pb2 as transaction__pb2/import proto.transaction_pb2 as transaction__pb2/g' ../../proto/transaction_pb2_grpc.py
+sed -i 's/import transaction_pb2 as transaction__pb2/import proto.transaction_pb2 as transaction__pb2/g' ../../proto/transaction_pb2_grpc.py
 ```
 
 ### 4. Execução do Cliente Básico

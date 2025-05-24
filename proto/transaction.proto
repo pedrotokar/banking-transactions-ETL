@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package transaction;
+
+service TransactionService {
+    rpc SendTransaction (Transaction) returns (Result);
+}
+
+message Transaction {
+    string id_transacao = 1;
+    string id_usuario_pagador = 2;
+    string id_usuario_recebedor = 3;
+    string id_regiao = 4;
+    string modalidade_pagamento = 5;
+    string data_horario = 6;
+    double valor_transacao = 7;
+    int64 timestamp_envio = 8;
+}
+
+message Result {
+    bool ok = 1;
+}
