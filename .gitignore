@@ -10,4 +10,10 @@ data/output*
 data/outputs/*
 data/mock_emap.csv
 data/mock_emap_processed.csv
+outputs/*
+proto/*.cc
+proto/*.h
+proto/*.py
 venv/
+.ipynb_checkpoints/
+.virtual_documents/
