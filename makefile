@@ -4,13 +4,16 @@ SRC_DIR = src
 INCLUDE_DIR = include
 MODULES_DIRS = dataframe datarepository
 DRIVER_DIR = drivers
+SERVER_DIR = grpc_server
+PROTOS_DIR = proto
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++20 -I $(INCLUDE_DIR)
-
+CXXFLAGS_SERVER = -Wall -std=c++20 -I $(INCLUDE_DIR) -I $(PROTOS_DIR)
 
 SRC_TESTS = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)) $(SRC_DIR)/$(DRIVER_DIR)/test.cpp)
 SRC_BANK = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)) $(SRC_DIR)/$(DRIVER_DIR)/bank.cpp)
+SRC_SERVER = $(wildcard $(SRC_DIR)/*.cpp $(foreach dir, $(MODULES_DIRS), $(wildcard $(SRC_DIR)/$(dir)/*.cpp)) $(PROTOS_DIR)/*.cc $(SRC_DIR)/$(SERVER_DIR)/transaction_server.cpp)
 
 .PHONY: build help run clean
 
@@ -31,6 +34,14 @@ runbank:
 	./bankETL
 
 bank: buildbank runbank
+
+buildserver: $(SRC_BANK) ## Build the project
+	$(CXX) $(CXXFLAGS_SERVER) -o bankServer $(SRC_SERVER) -lsqlite3
+
+runserver:
+	./bankServer
+
+server: buildserver runserver
 
 help: ## Show this help
 	@./scripts/help.sh $(MAKEFILE_LIST)

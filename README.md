@@ -5,6 +5,31 @@ Tokar, Tomás Lira e Vitor do Nascimento.*
 
 -------------------------------------------------------------------------------
 
+## Atenção!
+
+Para executar o servidor proto da segunda entrega, execute (comece da raiz):
+
+```bash
+$ protoc -I=proto --cpp_out=proto --grpc_out=proto --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin proto/transaction.proto
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+```
+
+Para executar o servidor então bastará usar o executável
+
+```bash
+$ ./transaction_server
+```
+
+que estará na pasta `build`.
+
+Observação: no primeiro comando, altere `/usr/bin/grpc_cpp_plugin` para o caminho
+onde se encontra o compilador proto para c++ da sua instação do grpc
+
+-------------------------------------------------------------------------------
+
 ## Sobre o repositório
 
 Esse repositório é destinado à primeira avaliação da matéria de Computação
