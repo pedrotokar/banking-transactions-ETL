@@ -1,6 +1,7 @@
 import grpc
 import time
 
+import random
 import numpy as np
 import os
 import uuid
@@ -23,6 +24,9 @@ estados_uf = [
     "RR","SC","SP","SE","TO"
 ]
 
+NUM_USERS = 100_000
+USER_IDS = [str(uuid.uuid4()) for _ in range(NUM_USERS)]
+
 class TransactionClient:
     def __init__(self, server_address, num_transactions = 100, seed=42):
         self.server_address = server_address
@@ -32,14 +36,14 @@ class TransactionClient:
         np.random.seed(seed)
         
         # Gerar IDs de usuários
-        self.user_ids = [str(uuid.uuid4()) for _ in range(num_transactions)]
+        self.user_ids = USER_IDS
         print(f"Cliente iniciado - Conectado a {server_address}")
 
     def generate_transaction(self):
         """Gera uma transação aleatória"""
         tx_id = str(uuid.uuid4())
-        pagador = np.random.choice(self.user_ids)
-        recebedor = np.random.choice(self.user_ids)
+        pagador = self.user_ids[random.randint(0, NUM_USERS-1)]
+        recebedor = self.user_ids[random.randint(0, NUM_USERS-1)]
         regiao = np.random.choice(estados_uf)
         modalidade = np.random.choice(payment_methods)
         data_horario = datetime.now() - timedelta(
