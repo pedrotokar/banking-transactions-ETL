@@ -564,3 +564,28 @@ void TimerTrigger::stop() {
         timerThread.join();
     }
 }
+
+// ##################################################################################################
+// ##################################################################################################
+// Implementação de ServerTrigger
+void ServerTrigger::start(int numThreads, DataFrame& df) { // TODO: usar df
+    if(isBusy()) {
+        std::cout << "A pipeline já está ocupada.\n";
+        return;
+    }
+
+    busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
+    if(numThreads > 1) {
+        std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
+        orchestratePipelineMultiThread3(numThreads);
+    } 
+    else {
+        std::cout << "Executando a pipeline em uma única thread.\n";
+        orchestratePipelineMonoThread();
+    }
+    busy.store(false, std::memory_order_relaxed); // Marca a pipeline como livre
+}
+
+bool ServerTrigger::isBusy() const {
+    return busy.load();
+}

@@ -41,4 +41,7 @@ using StrRow = std::vector<std::string>;
 
 using WildRow = std::variant<StrRow, VarRow, AnyRow>;
 
+// server-client update
+using DataBatch = std::vector<VarRow>;
+
 #endif // TYPES_HPP

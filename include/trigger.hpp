@@ -79,4 +79,13 @@ private:
     std::thread timerThread;         // Thread responsável pela execução periódica
 };
 
+// Similar ao RequestTrigger, mas um método para verificar se a pipeline está ocupada
+class ServerTrigger : public Trigger {
+public:
+    void start(int numThreads = 1, DataFrame& df) override; // TODO: usar df
+    bool isBusy() const;
+private:
+    std::atomic<bool> busy{false}; // Sinalizador para indicar se a pipeline está ocupada
+};
+
 #endif // TRIGGER_HPP
