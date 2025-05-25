@@ -164,6 +164,10 @@ public:
 
     bool hasNext() const override;
     void clear() override;
+
+    std::shared_ptr<DataFrame> getDF() {
+        return df;
+    }
 };
     
 #endif // DATAREPOSITORY_H

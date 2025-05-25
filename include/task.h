@@ -140,10 +140,10 @@ public:
     void decreaseConsumingCounter() override;
     void finishExecution() override;
 
+protected:
+    std::shared_ptr<DataFrame> dfOutput;
 private:
     DataRepository* repository;
-    std::shared_ptr<DataFrame> dfOutput;
-
     std::queue<std::string> buffer;
     size_t maxBufferSize;
     std::mutex bufferMutex;
@@ -181,6 +181,19 @@ private:
     MemoryRepository* repository;
 };
 
+class ExtractorNoop : public Extractor {
+public:
+    virtual ~ExtractorNoop() = default;
+
+    void addOutput(std::shared_ptr<DataFrame> outputDF);
+
+    virtual void executeMonoThread() override;
+    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
+
+private:
+    MemoryRepository* repository;
+};
 
 class Loader : public Task {
 public:
@@ -209,7 +222,6 @@ protected:
 
     void addRows(DataFrameWithIndexes pair, std::vector<std::atomic<bool>>& completedList, int tIndex,
                  std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);
-
 
 };
 

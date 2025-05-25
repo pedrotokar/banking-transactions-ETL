@@ -394,6 +394,30 @@ void Extractor::finishExecution(){
 
 // ###############################################################################################
 // ###############################################################################################
+// Metodos da classe ExtractorNoop
+
+void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
+    outputDFs.push_back(modelDF);
+    dfOutput = outputDFs.at(0);
+}
+
+void ExtractorNoop::executeMonoThread() {
+    std::cout << "WOWWW" << std::endl;
+    std::cout << "WOWWW" << std::endl;
+    std::cout << dfOutput->toString() << std::endl;
+
+    return;
+}
+
+std::vector<std::thread> ExtractorNoop::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
+                                                       std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
+    std::vector<std::thread> runningThreads;
+    runningThreads.emplace_back(&ExtractorNoop::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
+    return runningThreads;
+}
+
+// ###############################################################################################
+// ###############################################################################################
 // Metodos da classe Loader
 
 std::vector<DataFrameWithIndexes> Loader::getInput(int numThreads) {

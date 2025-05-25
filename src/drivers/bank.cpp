@@ -10,6 +10,9 @@
 #include <mutex>
 #include <algorithm>
 
+#include <any>
+#include <string>
+
 using DataFramePtr         = std::shared_ptr<DataFrame>;
 using DataFrameWithIndexes = std::pair<std::vector<int>, DataFramePtr>;
 
@@ -765,7 +768,21 @@ void testePipelineTransacoes(int nThreads = 8) {
     t1->addOutput(dfT1);
     t1->setTaskName("t1");
 
-    // auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
+    auto dfE4 = dfE3->emptyCopy();
+    auto dfTESTE = dfE3->emptyCopy();
+    std::vector<std::any> row = {std::string("AB"), 1.0, 1.0, 1.0, 1};
+    dfTESTE->addRow(row);
+    std::cout << dfTESTE->toString() << std::endl;
+
+    auto e4 = std::make_shared<ExtractorNoop>();
+    e4->addRepo(new MemoryRepository(dfTESTE));
+    e4->addOutput(dfTESTE);
+    e4->setTaskName("e4");
+
+
+    auto tp1 = std::make_shared<PrintTransformer>(">>> E1 outputs");
+    e4->addNext(tp1, {1});
+
     // t1->addNext(tp1, {1});
     // tp1->setTaskName("tp1");
 
@@ -906,6 +923,7 @@ void testePipelineTransacoes(int nThreads = 8) {
     trigger.addExtractor(e1);
     trigger.addExtractor(e2);
     trigger.addExtractor(e3);
+    trigger.addExtractor(e4);
 
     std::cout << "Executando com " << nThreads << " threads" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
