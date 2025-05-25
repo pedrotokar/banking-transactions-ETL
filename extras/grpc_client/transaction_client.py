@@ -1,11 +1,11 @@
 import grpc
 import time
-import pandas as pd
+
 import numpy as np
 import os
 import uuid
 from datetime import datetime, timedelta
-import sqlite3
+
 import argparse
 import sys
 from concurrent import futures
@@ -24,7 +24,7 @@ estados_uf = [
 ]
 
 class TransactionClient:
-    def __init__(self, server_address, num_transactions=100, seed=42):
+    def __init__(self, server_address, num_transactions = 100, seed=42):
         self.server_address = server_address
         self.num_transactions = num_transactions
         self.channel = grpc.insecure_channel(server_address)
@@ -61,6 +61,21 @@ class TransactionClient:
         
         return transaction
 
+    def transaction_iterator(self, total_transactions):
+        current = 0
+        while True:
+            print("Current: ", current)
+            transaction = self.generate_transaction()
+            yield transaction
+            current += 1
+            if total_transactions == current:
+                break
+
+
+    def sender_thread(self, total_transactions = -1):
+        self.stub.SendTransaction(self.transaction_iterator(total_transactions))
+
+    #ANTIGO - PARA TRANSAÇÃO SEM STREAM
     def send_transaction(self, transaction):
         """Envia uma transação para o servidor via gRPC"""
         try:
@@ -71,6 +86,7 @@ class TransactionClient:
         except grpc.RpcError as e:
             print(f"Erro ao enviar transação: {e.code()}: {e.details()}")
             return None
+
 
     def run(self, max_workers=10):
         """Executa o cliente gerando e enviando transações"""
@@ -115,7 +131,8 @@ def main():
         num_transactions=args.transactions,
         seed=args.seed
     )
-    client.run(max_workers=args.workers)
+    # client.run(max_workers=args.workers)
+    client.sender_thread()
 
 
 if __name__ == "__main__":

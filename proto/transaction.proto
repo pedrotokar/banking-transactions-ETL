@@ -3,7 +3,7 @@ syntax = "proto3";
 package transaction;
 
 service TransactionService {
-    rpc SendTransaction (Transaction) returns (Result);
+    rpc SendTransaction (stream Transaction) returns (Result);
 }
 
 message Transaction {
