@@ -749,39 +749,41 @@ void testePipelineTransacoes(int nThreads = 8) {
     e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
     e1->addOutput(dfE1);
     e1->setTaskName("e1");
+    e1->blockReadAgain();
 
     auto e2 = std::make_shared<ExtractorSQLite>();
     SQLiteRepository* sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
     sqliteRepository->setTable("informacoes_cadastro");
     e2->addRepo(sqliteRepository);
-    
     e2->addOutput(dfE2);
     e2->setTaskName("e2");
+    e2->blockReadAgain();
 
     auto e3 = std::make_shared<ExtractorFile>();
     e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
     e3->addOutput(dfE3);
     e3->setTaskName("e3");
+    e3->blockReadAgain();
 
     //==================== Construção dos elementos do DAG ===========================//
     auto t1 = std::make_shared<T1Transformer>();
     t1->addOutput(dfT1);
     t1->setTaskName("t1");
 
-    auto dfE4 = dfE3->emptyCopy();
-    auto dfTESTE = dfE3->emptyCopy();
-    std::vector<std::any> row = {std::string("AB"), 1.0, 1.0, 1.0, 1};
-    dfTESTE->addRow(row);
-    std::cout << dfTESTE->toString() << std::endl;
-
-    auto e4 = std::make_shared<ExtractorNoop>();
-    e4->addRepo(new MemoryRepository(dfTESTE));
-    e4->addOutput(dfTESTE);
-    e4->setTaskName("e4");
-
-
-    auto tp1 = std::make_shared<PrintTransformer>(">>> E1 outputs");
-    e4->addNext(tp1, {1});
+    // auto dfE4 = dfE3->emptyCopy();
+    // auto dfTESTE = dfE3->emptyCopy();
+    // std::vector<std::any> row = {std::string("AB"), 1.0, 1.0, 1.0, 1};
+    // dfTESTE->addRow(row);
+    // std::cout << dfTESTE->toString() << std::endl;
+    //
+    // auto e4 = std::make_shared<ExtractorNoop>();
+    // e4->addRepo(new MemoryRepository(dfTESTE));
+    // e4->addOutput(dfTESTE);
+    // e4->setTaskName("e4");
+    //
+    //
+    // auto tp1 = std::make_shared<PrintTransformer>(">>> E1 outputs");
+    // e4->addNext(tp1, {1});
 
     // t1->addNext(tp1, {1});
     // tp1->setTaskName("tp1");
@@ -923,7 +925,7 @@ void testePipelineTransacoes(int nThreads = 8) {
     trigger.addExtractor(e1);
     trigger.addExtractor(e2);
     trigger.addExtractor(e3);
-    trigger.addExtractor(e4);
+    // trigger.addExtractor(e4);
 
     std::cout << "Executando com " << nThreads << " threads" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
@@ -931,10 +933,40 @@ void testePipelineTransacoes(int nThreads = 8) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+
+    e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
+
+    sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
+    sqliteRepository->setTable("informacoes_cadastro");
+    e2->addRepo(sqliteRepository);
+
+    e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
+
+    std::cout << "Executando com " << nThreads << " threads" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
+    trigger.start(nThreads);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = end - start;
+    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
+
+    e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
+
+    sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
+    sqliteRepository->setTable("informacoes_cadastro");
+    e2->addRepo(sqliteRepository);
+
+    e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
+
+    std::cout << "Executando com " << nThreads << " threads" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
+    trigger.start(nThreads);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed = end - start;
+    std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 }
 
 int main(int argc, char *argv[]) {
-    int nThreads = 1;
+    int nThreads = 11;
     if (argc > 1) {
         nThreads = std::stoi(argv[1]);
     }

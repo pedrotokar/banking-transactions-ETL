@@ -124,7 +124,7 @@ protected:
 
 class Extractor : public Task {
 public:
-    Extractor(): buffer(), bufferMutex(), dfMutex(), consumingCounterMutex(), cv(), endProduction(false) {};
+    Extractor(): buffer(), bufferMutex(), dfMutex(), consumingCounterMutex(), cv(), endProduction(false), readAgain(true) {};
     virtual ~Extractor() = default;
     //addOUtput especial pro extractor
     void addOutput(std::shared_ptr<DataFrame> outputDF);
@@ -139,6 +139,7 @@ public:
     //Implementação específica para os métodos de pós execução e contagem
     void decreaseConsumingCounter() override;
     void finishExecution() override;
+    void blockReadAgain() {readAgain = false;}
 
 protected:
     std::shared_ptr<DataFrame> dfOutput;
@@ -151,6 +152,7 @@ private:
     std::mutex consumingCounterMutex;
     std::condition_variable cv;
     std::atomic<bool> endProduction;
+    bool readAgain;
     //Funções para execução com multithreading
     void producer(std::vector<std::atomic<bool>>& completedList, int tIndex,
                   std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex);

@@ -267,9 +267,11 @@ void Extractor::decreaseConsumingCounter(){
     tasksConsumingOutput--;
     if(tasksConsumingOutput == 0){
         for(size_t i = 0; i < outputDFs.size(); i++){
+            if(readAgain) {
+                outputDFs[i] = outputDFs[i]->emptyCopy();
+                dfOutput = outputDFs[i];
+            }
             //std::cout << "Limpando dataframes agora que as saídas já consumiram " << outputDFs[i].use_count() << std::endl;
-            outputDFs[i] = outputDFs[i]->emptyCopy();
-            dfOutput = outputDFs[i];
         }
         tasksConsumingOutput = nextTasks.size();
     }
@@ -278,6 +280,10 @@ void Extractor::decreaseConsumingCounter(){
 void Extractor::executeMonoThread(){
     // std::cout << "Executando extrator sem paralelizar" << std::endl;
     // Percorre toda a base de dados
+    std::cout << taskName << " mono " << readAgain << " " << dfOutput->size() << std::endl;
+    if(dfOutput->size() != 0){
+        return;
+    }
     int i = 0;
     while (true) {
         // Pega cada linha
@@ -294,10 +300,14 @@ void Extractor::executeMonoThread(){
             i = 1;
         }
     };
+    if(readAgain == false){
+        blockMultiThreading = true;
+    }
 }
 
 std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
+    std::cout << taskName << " multi " << numThreads << " " << readAgain << " " << dfOutput->size() << std::endl;
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
         runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
@@ -310,6 +320,9 @@ std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vect
         for (int i = 0; i < numThreads - 1; ++i) {
             runningThreads.emplace_back(&Extractor::consumer, this, ref(completedThreads), i + 1, ref(orchestratorCv), ref(orchestratorMutex));
         }
+    }
+    if(readAgain == false){
+        blockMultiThreading = true;
     }
     return runningThreads;
 }
