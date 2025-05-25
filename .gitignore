@@ -14,6 +14,8 @@ outputs/*
 proto/*.cc
 proto/*.h
 proto/*.py
+__pycache__
 venv/
 .ipynb_checkpoints/
 .virtual_documents/
+build/*

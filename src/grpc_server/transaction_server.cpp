@@ -15,8 +15,6 @@ using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerReader;
-using grpc::ServerWriter;
-using grpc::ServerReaderWriter;
 using grpc::Status;
 
 using transaction::Transaction;
