@@ -30,11 +30,13 @@ void PipelineManager::submitDataBatch(DataBatch batch) {
         // std::cerr << "PipelineManager: Warning! Data submitted after stop(): batch of " << batch.size() << " rows discarded." << std::endl;
         return;
     }
+    // std::cout << "Me chamou!! submit" << std::endl;
     {
         std::lock_guard<std::mutex> lock(queue_mutex);
         batchs_queue.push(std::move(batch)); // Usa std::move para eficiência
     }
     queue_cv.notify_one(); // Notifica a worker_thread que há novos dados
+    std::cout << "Tamanho da queue atual: " << batchs_queue.size() << std::endl;
 }
 
 // Inicia a thread de processamento interna do PipelineManager.
@@ -71,6 +73,7 @@ void PipelineManager::processingLoop() {
     DataFrame local_empty_template = waiting_dataframe; // Captura o estado inicial (estrutura)
 
     while (running.load()) {
+        // std::cout << "loop" << std::endl;
         DataBatch current_data_batch;
         {
             std::unique_lock<std::mutex> lock(queue_mutex);
@@ -98,9 +101,11 @@ void PipelineManager::processingLoop() {
         if (!current_data_batch.empty()) {
             // Assumindo que DataFrame tem um método para adicionar linhas.
             // Se houver um método mais eficiente como `appendBatch(const DataBatch&)`, use-o.
+            std::cout << "waiting df antes: " << waiting_dataframe.size() << std::endl;
             for (const auto& row : current_data_batch) { // Supondo que DataBatch é iterável e contém VarRow
                 waiting_dataframe.addRow(row);
             }
+            std::cout << "waiting df depois: " << waiting_dataframe.size() << std::endl;
             // std::cout << "PipelineManager: Added " << current_data_batch.size() << " rows. Waiting DF size: " << waiting_dataframe.rowCount() << std::endl;
         }
 
@@ -109,9 +114,7 @@ void PipelineManager::processingLoop() {
 
         // Verifica se a pipeline pode ser acionada
         if (!pipeline_trigger.isBusy() && waiting_dataframe.size() > 0 && waiting_dataframe.size() > df_trigger_size) {
-            if (!running.load()) {
-                should_trigger_pipeline = true;
-            }
+            should_trigger_pipeline = true;
         }
 
         if (should_trigger_pipeline) {
@@ -121,7 +124,12 @@ void PipelineManager::processingLoop() {
             waiting_dataframe = local_empty_template; // Reseta waiting_dataframe para a estrutura vazia.
 
             // std::cout << "PipelineManager: Triggering pipeline with " << running_dataframe.rowCount() << " rows." << std::endl;
+            // std::cout << "calling start in pipelinemanager" << std::endl;
+            auto start = std::chrono::high_resolution_clock::now();
             pipeline_trigger.start(8, std::make_shared<DataFrame>(running_dataframe)); // TODO: alterar 8 para o numero de threads escolhido
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> elapsed = end - start;
+            std::cout << "Tempo de execução da pipeline: " << elapsed.count() << " milissegundos.\n";
             // Após a execução (se síncrona), running_dataframe pode ser explicitamente limpo
             // ou simplesmente será sobrescrito na próxima troca.
             // Se for assíncrono, certifique-se de que running_dataframe não seja modificado

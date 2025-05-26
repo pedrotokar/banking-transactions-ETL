@@ -153,14 +153,14 @@ void Trigger::orchestratePipelineMultiThread(int numThreads) {
 }*/
 
 bool Trigger::calculateThreadsDistribution(int numThreads) {
-    std::cout << "Calculando a distribuição ideal de threads...\n";
+    // std::cout << "Calculando a distribuição ideal de threads...\n";
 
     if(vExtractors.empty()){
         std::cout << "Nenhum extrator foi adicionado ao Trigger.\n";
         return false;  
     }
     else if(!taskMap.empty()){
-        std::cout << "A distribuição de threads já foi calculada.\n";
+        // std::cout << "A distribuição de threads já foi calculada.\n";
         return false;
     }
     std::queue<std::string> tasksQueue, tasksQueueReverse;
@@ -268,7 +268,7 @@ bool Trigger::calculateThreadsDistribution(int numThreads) {
         }
     }
 
-    std::cout << "Cálculo concluído.\n";
+    // std::cout << "Cálculo concluído.\n";
     return true;
 }
 
@@ -364,7 +364,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
     calculateThreadsDistribution(maxThreads);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Tempo de execução de calculateThreadsDistribution: " << elapsed.count() << " ms.\n";
+    // std::cout << "Tempo de execução de calculateThreadsDistribution: " << elapsed.count() << " ms.\n";
 
     auto cmp = [this](auto const &a, auto const &b) {
         const auto &wa = taskMap.at(a).finalWeight;
@@ -482,7 +482,7 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
                 group.task->finishExecution();
                 auto end = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double, std::milli> elapsed = end - group.start;
-                std::cout << "Tempo de execução do bloco " << group.task->getTaskName() << ": " << elapsed.count() << " milissegundos.\n";
+                // std::cout << "Tempo de execução do bloco " << group.task->getTaskName() << ": " << elapsed.count() << " milissegundos.\n";
                 // enfileira nextTasks (leva em conta dependências)
                 for (auto& nxt : group.task->getNextTasks()) {
                     nxt->incrementExecutedPreviousTasks();
@@ -577,14 +577,12 @@ void ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) { // TO
     }
     std::shared_ptr<ExtractorNoop> noopExtractor = std::dynamic_pointer_cast<ExtractorNoop>(vExtractors[eIndex]);
     noopExtractor->addOutput(df);
-    //AQUI ENTRA O DF
-    // e1->addRepo(new MemoryRepository();
 
     busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
         orchestratePipelineMultiThread3(numThreads);
-    } 
+    }
     else {
         std::cout << "Executando a pipeline em uma única thread.\n";
         orchestratePipelineMonoThread();

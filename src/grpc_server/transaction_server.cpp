@@ -924,51 +924,14 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
 
     return trigger;
 }
-    // trigger.addExtractor(e4);
-
-    // std::cout << "Executando com " << nThreads << " threads" << std::endl;
-    // auto start = std::chrono::high_resolution_clock::now();
-    // trigger.start(nThreads);
-    // auto end = std::chrono::high_resolution_clock::now();
-    // std::chrono::duration<double, std::milli> elapsed = end - start;
-    // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
-    //
-    // e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
-    //
-    // sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
-    // sqliteRepository->setTable("informacoes_cadastro");
-    // e2->addRepo(sqliteRepository);
-    //
-    // e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
-    //
-    // std::cout << "Executando com " << nThreads << " threads" << std::endl;
-    // start = std::chrono::high_resolution_clock::now();
-    // trigger.start(nThreads);
-    // end = std::chrono::high_resolution_clock::now();
-    // elapsed = end - start;
-    // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
-    //
-    // e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
-    //
-    // sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
-    // sqliteRepository->setTable("informacoes_cadastro");
-    // e2->addRepo(sqliteRepository);
-    //
-    // e3->addRepo(new FileRepository("data/regioes_estados_brasil.csv", ",", true));
-    //
-    // std::cout << "Executando com " << nThreads << " threads" << std::endl;
-    // start = std::chrono::high_resolution_clock::now();
-    // trigger.start(nThreads);
-    // end = std::chrono::high_resolution_clock::now();
-    // elapsed = end - start;
-    // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 
 class TransactionServerImpl final : public TransactionService::Service {
 private:
     ServerTrigger* trigger;
+    PipelineManager* manager;
 
 public:
-    TransactionServerImpl(ServerTrigger* trigg): trigger(trigg) {};
+    TransactionServerImpl(ServerTrigger* trigg, PipelineManager* man): trigger(trigg), manager(man) {};
     Status SendTransaction (ServerContext* context,
                             ServerReader<Transaction>* stream,
                             Result* reply) override {
@@ -986,25 +949,10 @@ public:
             // std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
 
             incomingTransactions++;
-            if(rowBatch->size() > 5000){
+            if(rowBatch->size() > 8000){
 
-                auto dfE1 = std::make_shared<DataFrame>();
-                dfE1->addColumn<std::string>("id_transacao");
-                dfE1->addColumn<std::string>("id_usuario_pagador");
-                dfE1->addColumn<std::string>("id_usuario_recebedor");
-                dfE1->addColumn<std::string>("id_regiao"); // ocorrência da região
-                dfE1->addColumn<std::string>("modalidade_pagamento");
-                dfE1->addColumn<std::string>("data_horario");
-                dfE1->addColumn<double>     ("valor_transacao");
-
-                for(VarRow row: *rowBatch){
-                    dfE1->addRow(row);
-                }
-
-                trigger->start(6, dfE1);
-
-
-                //aqui entrega pra outra thread - não existe ainda
+                std::cout << "thread " << std::this_thread::get_id() << " chamando submit." << std::endl;
+                manager->submitDataBatch(*rowBatch);
                 rowBatch = new std::vector<VarRow>;
             }
         }
@@ -1015,9 +963,23 @@ public:
 
 
 void RunServer() {
-    std::string server_address("0.0.0.0:50051");
+    //Building dataframe
+    auto dfE1 = DataFrame();
+    dfE1.addColumn<std::string>("id_transacao");
+    dfE1.addColumn<std::string>("id_usuario_pagador");
+    dfE1.addColumn<std::string>("id_usuario_recebedor");
+    dfE1.addColumn<std::string>("id_regiao");
+    dfE1.addColumn<std::string>("modalidade_pagamento");
+    dfE1.addColumn<std::string>("data_horario");
+    dfE1.addColumn<double>     ("valor_transacao");
+
+    //Building trigger and manager
     ServerTrigger* trigger = buildPipelineTransacoes();
-    TransactionServerImpl service(trigger);
+    PipelineManager* manager = new PipelineManager(*trigger, dfE1, 1);
+    manager->start();
+
+    std::string server_address("0.0.0.0:50051");
+    TransactionServerImpl service(trigger, manager);
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);

@@ -280,7 +280,7 @@ void Extractor::decreaseConsumingCounter(){
 void Extractor::executeMonoThread(){
     // std::cout << "Executando extrator sem paralelizar" << std::endl;
     // Percorre toda a base de dados
-    std::cout << taskName << " mono " << readAgain << " " << dfOutput->size() << std::endl;
+    // std::cout << taskName << " mono " << readAgain << " " << dfOutput->size() << std::endl;
     if(dfOutput->size() != 0){
         return;
     }
@@ -307,7 +307,7 @@ void Extractor::executeMonoThread(){
 
 std::vector<std::thread> Extractor::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
-    std::cout << taskName << " multi " << numThreads << " " << readAgain << " " << dfOutput->size() << std::endl;
+    // std::cout << taskName << " multi " << numThreads << " " << readAgain << " " << dfOutput->size() << std::endl;
     std::vector<std::thread> runningThreads;
     if(numThreads == 1){
         runningThreads.emplace_back(&Extractor::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
@@ -425,8 +425,7 @@ void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
 }
 
 void ExtractorNoop::executeMonoThread() {
-    std::cout << "WOWWW" << std::endl;
-    std::cout << dfOutput->toString() << std::endl;
+    return;
     // std::this_thread::sleep_for(std::chrono::seconds(5));
 }
 
