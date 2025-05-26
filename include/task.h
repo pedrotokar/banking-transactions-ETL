@@ -190,8 +190,8 @@ public:
     void addOutput(std::shared_ptr<DataFrame> outputDF);
 
     virtual void executeMonoThread() override;
-    virtual std::vector<std::thread> executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
-                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex) override;
+
+    void finishExecution() override;
 
 private:
     MemoryRepository* repository;

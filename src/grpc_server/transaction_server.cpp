@@ -988,7 +988,7 @@ public:
             if(rowBatch->size() > 5000){
 
                 ServerTrigger* trigger = buildPipelineTransacoes(9, rowBatch);
-                trigger->start(1);
+                trigger->start(6);
 
                 //aqui entrega pra outra thread - não existe ainda
                 rowBatch = new std::vector<VarRow>;
