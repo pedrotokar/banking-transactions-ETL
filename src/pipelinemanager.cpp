@@ -1,4 +1,3 @@
-// PipelineManager.cpp
 #include "pipelinemanager.hpp"
 #include <iostream>
 

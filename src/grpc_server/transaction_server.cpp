@@ -979,6 +979,9 @@ public:
         Transaction current;
         int incomingTransactions = 0;
         std::vector<VarRow>* rowBatch = new std::vector<VarRow>;
+        
+        auto lastSubmit = std::chrono::high_resolution_clock::now();
+
         while(stream->Read(&current)){
             //==== Lógica vai aqui - esse while vai loopar enquanto há stream do client ====
             VarRow row = {current.id_transacao(), current.id_usuario_pagador(),
@@ -988,11 +991,15 @@ public:
             rowBatch->push_back(row);
 
             // std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
-
+            
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> deltaTime = end - lastSubmit;
+                
             incomingTransactions++;
-            if(rowBatch->size() > 5000){
+            if(rowBatch->size() >= 8000 || (rowBatch->size() > 0 && deltaTime > std::chrono::milliseconds(5*1000))){
+                lastSubmit = std::chrono::high_resolution_clock::now();
 
-                std::cout << "thread " << std::this_thread::get_id() << " chamando submit." << std::endl;
+                // std::cout << "thread " << std::this_thread::get_id() << " chamando submit." << std::endl;
                 manager->submitDataBatch(*rowBatch);
                 rowBatch = new std::vector<VarRow>;
             }
