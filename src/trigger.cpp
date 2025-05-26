@@ -527,15 +527,17 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
 // ##################################################################################################
 // Implementação de RequestTrigger
 void RequestTrigger::start(int numThreads) {
+    isBusy = true;
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
         orchestratePipelineMultiThread3(numThreads);
-    } 
+    }
 
     else {
         std::cout << "Executando a pipeline em uma única thread.\n";
         orchestratePipelineMonoThread();
     }
+    isBusy = false;
 }
 
 // ##################################################################################################
@@ -568,7 +570,7 @@ void TimerTrigger::stop() {
 // ##################################################################################################
 // ##################################################################################################
 // Implementação de ServerTrigger
-void ServerTrigger::start(int numThreads, DataFrame& df) { // TODO: usar df
+void ServerTrigger::start(int numThreads) { // TODO: usar df
     if(isBusy()) {
         std::cout << "A pipeline já está ocupada.\n";
         return;

@@ -40,6 +40,7 @@ public:
     // Esses parâmetros são usados para calcular a distribuição de threads
     double getAlpha() const;
     void setAlpha(double alpha);
+
 protected:
     // Vetor de tasks que serão os pontos de partida da pipeline
     std::vector<std::shared_ptr<Task>> vExtractors;
@@ -55,6 +56,7 @@ protected:
     void orchestratePipelineMultiThread2(int numThreads);
     void orchestratePipelineMultiThread3(int numThreads);
     bool calculateThreadsDistribution(int numThreads);
+    bool isBusy = false;
 };
 
 // Trigger que executa a pipeline apenas uma vez
@@ -82,10 +84,10 @@ private:
 // Similar ao RequestTrigger, mas um método para verificar se a pipeline está ocupada
 class ServerTrigger : public Trigger {
 public:
-    void start(int numThreads = 1, DataFrame& df) override; // TODO: usar df
+    void start(int numThreads = 1) override; // TODO: usar df
     bool isBusy() const;
 private:
     std::atomic<bool> busy{false}; // Sinalizador para indicar se a pipeline está ocupada
 };
 
-#endif // TRIGGER_HPP
+#endif
