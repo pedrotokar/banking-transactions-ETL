@@ -123,19 +123,9 @@ void PipelineManager::processingLoop() {
             std::swap(waiting_dataframe, running_dataframe);
 
             waiting_dataframe = local_empty_template; // Reseta waiting_dataframe para a estrutura vazia.
-
+            
             std::cout << "PipelineManager: Triggering pipeline with " << running_dataframe.size() << " rows." << std::endl;
-            auto start = std::chrono::high_resolution_clock::now();
             orchestratorThread = pipeline_trigger.start(8, std::make_shared<DataFrame>(running_dataframe)); // TODO: alterar 8 para o numero de threads escolhido
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed = end - start;
-            std::cout << "Tempo de execução da pipeline: " << elapsed.count() << " milissegundos.\n";
-            // Após a execução (se síncrona), running_dataframe pode ser explicitamente limpo
-            // ou simplesmente será sobrescrito na próxima troca.
-            // Se for assíncrono, certifique-se de que running_dataframe não seja modificado
-            // até que a pipeline termine de usá-lo (isBusy() deve cobrir isso).
-            // Se 'executePipeline' for síncrona, o 'isBusy()' deve se tornar 'true'
-            // no início de 'executePipeline' e 'false' no final.
         }
     }
     std::cout << "PipelineManager: Processing loop finished." << std::endl;

@@ -581,6 +581,8 @@ std::thread ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) 
 
     std::thread orchestratorThread([this, numThreads]() {
         busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
+        
+        auto start = std::chrono::high_resolution_clock::now();
         if(numThreads > 1) {
             std::cout << "ServerTrigger: Executando a pipeline com " << numThreads << " threads." << std::endl;
             orchestratePipelineMultiThread3(numThreads);
@@ -589,6 +591,10 @@ std::thread ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) 
             std::cout << "ServerTrigger: Executando a pipeline em uma única thread." << std::endl;
             orchestratePipelineMonoThread();
         }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Tempo de execução da pipeline: " << elapsed.count() << " milissegundos.\n";
+        
         busy.store(false, std::memory_order_relaxed); // Marca a pipeline como livre
     });
 
