@@ -27,6 +27,7 @@ Abaixo encontram-se instruções para executar a pipeline como um servidor gRPC.
 mock usado para base de dados deve ser o mesmo. Para assegurar isso, basta executar
 o gerador de dados e se certificar de que o **mesmo** arquivo `.db` gerado se
 encontre na pasta `data` tanto na máquina do servidor quanto na máquina do cliente.
+Esse arquivo pode ser gerado utilizando a versão do README da entrega original.
 
 Para executar o servidor grpc, primeiro certifique-se de que o gRPC está instalado
 em seu sistema, e se não estiver, faça da forma como preferir. Com o gRPC instalado,
