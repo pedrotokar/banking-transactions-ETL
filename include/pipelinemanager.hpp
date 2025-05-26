@@ -55,6 +55,8 @@ private:
     DataFrame waiting_dataframe, running_dataframe; // Onde os batches são acumulados
 
     std::thread worker_thread;      // A thread que executa processingLoop()
+    std::thread orchestratorThread; // A thread que executa a pipeline (orquestrador)
+
     std::atomic<bool> running{false};  // Sinalizador para controlar o loop da thread
 
     size_t df_trigger_size; // Critério para disparar a pipeline

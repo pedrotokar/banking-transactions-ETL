@@ -570,24 +570,29 @@ void TimerTrigger::stop() {
 // ##################################################################################################
 // ##################################################################################################
 // Implementação de ServerTrigger
-void ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) { // TODO: usar df
+std::thread ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) { // TODO: usar df
     if(isBusy()) {
-        std::cout << "A pipeline já está ocupada.\n";
-        return;
+        std::cout << "ServerTrigger: A pipeline já está ocupada." << std::endl;
+        return std::thread(); // Retorna uma thread vazia se já estiver ocupada
     }
+ 
     std::shared_ptr<ExtractorNoop> noopExtractor = std::dynamic_pointer_cast<ExtractorNoop>(vExtractors[eIndex]);
     noopExtractor->addOutput(df);
 
-    busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
-    if(numThreads > 1) {
-        std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
-        orchestratePipelineMultiThread3(numThreads);
-    }
-    else {
-        std::cout << "Executando a pipeline em uma única thread.\n";
-        orchestratePipelineMonoThread();
-    }
-    busy.store(false, std::memory_order_relaxed); // Marca a pipeline como livre
+    std::thread orchestratorThread([this, numThreads]() {
+        busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
+        if(numThreads > 1) {
+            std::cout << "ServerTrigger: Executando a pipeline com " << numThreads << " threads." << std::endl;
+            orchestratePipelineMultiThread3(numThreads);
+        }
+        else {
+            std::cout << "ServerTrigger: Executando a pipeline em uma única thread." << std::endl;
+            orchestratePipelineMonoThread();
+        }
+        busy.store(false, std::memory_order_relaxed); // Marca a pipeline como livre
+    });
+
+    return orchestratorThread;
 }
 
 bool ServerTrigger::isBusy() const {
