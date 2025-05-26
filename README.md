@@ -13,10 +13,15 @@ Para ver as diferenças do repositório git entre as entregas, utilize:
 $ git diff entrega-A1 entrega-RPC
 ```
 
-## Servidor gRPC
+## gRPC
+
+### Cliente
+
+Os arquivos e instruções para executar os clientes estão em `extras/grpc_client`.
+
+### Servidor
 
 Abaixo encontram-se instruções para executar a pipeline como um servidor gRPC.
-Os arquivos e instruções para executar os clientes estão em `extras/grpc_client`.
 
 **Importante:** para o funcionamento correto de servidor e cliente, o arquivo
 mock usado para base de dados deve ser o mesmo. Para assegurar isso, basta executar
