@@ -425,6 +425,7 @@ void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
 }
 
 void ExtractorNoop::executeMonoThread() {
+    // std::cout << dfOutput->toString() << std::endl;
     return;
     // std::this_thread::sleep_for(std::chrono::seconds(5));
 }

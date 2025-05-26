@@ -72,6 +72,7 @@ class TransactionClient:
             print("Current: ", current)
             transaction = self.generate_transaction()
             yield transaction
+            # time.sleep(0)
             current += 1
             if total_transactions == current:
                 break

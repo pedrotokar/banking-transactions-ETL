@@ -101,11 +101,11 @@ void PipelineManager::processingLoop() {
         // Adiciona os dados do batch recebido ao waiting_dataframe
         if (!current_data_batch.empty()) {
             std::cout << "PipelineManager: Adding batch of size " << current_data_batch.size() << std::endl;
-            std::cout << "PipelineManager: waiting_dataframe.size()" << waiting_dataframe.size() << std::endl;
+            std::cout << "PipelineManager: waiting_dataframe.size() " << waiting_dataframe.size() << std::endl;
             for (const auto& row : current_data_batch) {
                 waiting_dataframe.addRow(row);
             }
-            std::cout << "PipelineManager: waiting_dataframe.size()" << waiting_dataframe.size() << std::endl;
+            std::cout << "PipelineManager: waiting_dataframe.size() " << waiting_dataframe.size() << std::endl;
         }
 
         // Lógica para decidir quando disparar a pipeline
@@ -121,9 +121,8 @@ void PipelineManager::processingLoop() {
             std::cout << "PipelineManager Thread ID" << std::this_thread::get_id() << " executando a pipeline ###@@@" << std::endl;
 
             // Prepara os dados para a pipeline.
-            std::swap(waiting_dataframe, running_dataframe);
-
-            waiting_dataframe = local_empty_template; // Reseta waiting_dataframe para a estrutura vazia.
+            running_dataframe = waiting_dataframe;
+            waiting_dataframe = *waiting_dataframe.emptyCopy();
 
             std::cout << "PipelineManager: Triggering pipeline with " << running_dataframe.size() << " rows." << std::endl;
             orchestratorThread = pipeline_trigger.start(pipelineNumThreads, std::make_shared<DataFrame>(running_dataframe));

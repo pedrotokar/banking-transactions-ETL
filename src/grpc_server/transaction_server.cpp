@@ -897,25 +897,25 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     auto t12 = std::make_shared<T12Transformer>();
     t12->setTaskName("t12");
 
-    auto l6 = std::make_shared<LoaderFile>(0, true);
-    l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
+    auto l6 = std::make_shared<LoaderFile>(0, false);
+    l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", false));
     l6->setTaskName("l6");
 
-    auto l3 = std::make_shared<LoaderFile>(1, true);
-    l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", true));
+    auto l3 = std::make_shared<LoaderFile>(1, false);
+    l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", false));
     l3->setTaskName("l3");
-    auto l4 = std::make_shared<LoaderFile>(2, true);
-    l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
+    auto l4 = std::make_shared<LoaderFile>(2, false);
+    l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", false));
     l4->setTaskName("l4");
-    auto l5 = std::make_shared<LoaderFile>(3, true);
-    l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
+    auto l5 = std::make_shared<LoaderFile>(3, false);
+    l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", false));
     l5->setTaskName("l5");
 
-    auto l1 = std::make_shared<LoaderFile>(0, true);
-    l1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", true));
+    auto l1 = std::make_shared<LoaderFile>(0, false);
+    l1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", false));
     l1->setTaskName("l1");
 
-    auto l2 = std::make_shared<LoaderFile>(1, true);
+    auto l2 = std::make_shared<LoaderFile>(1, false);
     l2->addRepo(new FileRepository("outputs/output_L2_usr.csv", ",", false));
     l2->setTaskName("l2");
 
@@ -996,7 +996,7 @@ public:
             std::chrono::duration<double, std::milli> deltaTime = end - lastSubmit;
                 
             incomingTransactions++;
-            if(rowBatch->size() >= 8000 || (rowBatch->size() > 0 && deltaTime > std::chrono::milliseconds(5*1000))){
+            if(rowBatch->size() >= 5000 || (rowBatch->size() > 0 && deltaTime > std::chrono::milliseconds(5*1000))){
                 lastSubmit = std::chrono::high_resolution_clock::now();
 
                 // std::cout << "thread " << std::this_thread::get_id() << " chamando submit." << std::endl;
