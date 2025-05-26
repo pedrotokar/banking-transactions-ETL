@@ -15,14 +15,16 @@
 
 class PipelineManager {
 public:
-    // Construtor:
-    // - pipeline_trigger: Uma referência (ou ponteiro inteligente) para a
-    //                      implementação concreta da pipeline.
-    // - empty_dataframe: Um dataframe vazio contendo a estrutura que será utilizada para acumular os
-    //                    dados recebidos antes de serem enviados para a pipeline executar.
-    // - df_trigger_size: Número mínimo de linhas no dataframe agregado
-    //                    para considerar disparar a pipeline (exemplo de critério).
-
+    /*
+    Construtor:
+      - pipeline_trigger: Uma referência (ou ponteiro inteligente) para a
+                          implementação concreta da pipeline.
+      - empty_dataframe: Um dataframe vazio contendo a estrutura que será utilizada para acumular os
+                         dados recebidos antes de serem enviados para a pipeline executar.
+      - pipelineNumThreads: Número de threads que a pipeline pode usar para processar os dados.
+      - df_trigger_size: Número mínimo de linhas no dataframe agregado
+                         para considerar disparar a pipeline (exemplo de critério).
+    */
     PipelineManager(ServerTrigger& pipeline_trigger, 
                     DataFrame empty_dataframe, 
                     size_t pipelineNumThreads=8, 
