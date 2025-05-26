@@ -898,21 +898,21 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     t12->setTaskName("t12");
 
     auto l6 = std::make_shared<LoaderFile>(0, false);
-    l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", false));
+    l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
     l6->setTaskName("l6");
 
     auto l3 = std::make_shared<LoaderFile>(1, false);
-    l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", false));
+    l3->addRepo(new FileRepository("outputs/output_L3.csv", ",", true));
     l3->setTaskName("l3");
     auto l4 = std::make_shared<LoaderFile>(2, false);
-    l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", false));
+    l4->addRepo(new FileRepository("outputs/output_L4.csv", ",", true));
     l4->setTaskName("l4");
     auto l5 = std::make_shared<LoaderFile>(3, false);
-    l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", false));
+    l5->addRepo(new FileRepository("outputs/output_L5.csv", ",", true));
     l5->setTaskName("l5");
 
     auto l1 = std::make_shared<LoaderFile>(0, false);
-    l1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", false));
+    l1->addRepo(new FileRepository("outputs/output_L1_tx.csv", ",", true));
     l1->setTaskName("l1");
 
     auto l2 = std::make_shared<LoaderFile>(1, false);
