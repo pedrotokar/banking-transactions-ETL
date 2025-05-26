@@ -1,5 +1,6 @@
 import grpc
 import time
+import pandas as pd
 
 import random
 import numpy as np
@@ -25,7 +26,7 @@ estados_uf = [
 ]
 
 NUM_USERS = 100_000
-USER_IDS = [str(uuid.uuid4()) for _ in range(NUM_USERS)]
+USER_IDS = list(pd.read_csv("../../data/informacoes_cadastro_100k.csv")["id_usuario"])
 
 class TransactionClient:
     def __init__(self, server_address, num_transactions = 100, seed=42):

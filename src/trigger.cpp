@@ -478,7 +478,6 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
             }
 
             if (allJoined) {
-                std::cout << "indo finalizar e1" << std::endl;
                 // finaliza a Task
                 group.task->finishExecution();
                 auto end = std::chrono::high_resolution_clock::now();

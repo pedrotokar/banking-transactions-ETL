@@ -417,7 +417,6 @@ void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
 void ExtractorNoop::executeMonoThread() {
     std::cout << "WOWWW" << std::endl;
     std::cout << dfOutput->toString() << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
 void ExtractorNoop::finishExecution(){

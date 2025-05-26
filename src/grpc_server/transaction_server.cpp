@@ -783,8 +783,9 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     t1->addOutput(dfT1);
     t1->setTaskName("t1");
 
-    // t1->addNext(tp1, {1});
-    // tp1->setTaskName("tp1");
+    auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
+    t1->addNext(tp1, {1});
+    tp1->setTaskName("tp1");
 
     auto t2 = std::make_shared<T2Transformer>();
     t2->addOutput(dfT2);
@@ -989,6 +990,7 @@ public:
 
                 ServerTrigger* trigger = buildPipelineTransacoes(9, rowBatch);
                 trigger->start(6);
+
 
                 //aqui entrega pra outra thread - não existe ainda
                 rowBatch = new std::vector<VarRow>;
