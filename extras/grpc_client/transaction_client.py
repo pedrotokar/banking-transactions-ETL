@@ -115,6 +115,7 @@ class TransactionClient:
                     print(f"Progresso: {completed}/{self.num_transactions} transações enviadas")
         
         print(f"Envio de transações concluído: {self.num_transactions} transações enviadas.")
+    #NÃO É MAIS USADO
 
 
 def main():

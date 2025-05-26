@@ -5,9 +5,27 @@ Tokar, Tomás Lira e Vitor do Nascimento.*
 
 -------------------------------------------------------------------------------
 
-## Atenção!
+## Diferenças entre entrega A1 e A2
 
-Para executar o servidor proto da segunda entrega, execute (comece da raiz):
+Para ver as diferenças do repositório git entre as entregas, utilize:
+
+```bash
+$ git diff entrega-A1 entrega-RPC
+```
+
+## Servidor gRPC
+
+Abaixo encontram-se instruções para executar a pipeline como um servidor gRPC.
+Os arquivos e instruções para executar os clientes estão em `extras/grpc_client`.
+
+**Importante:** para o funcionamento correto de servidor e cliente, o arquivo
+mock usado para base de dados deve ser o mesmo. Para assegurar isso, basta executar
+o gerador de dados e se certificar de que o **mesmo** arquivo `.db` gerado se
+encontre na pasta `data` tanto na máquina do servidor quanto na máquina do cliente.
+
+Para executar o servidor grpc, primeiro certifique-se de que o gRPC está instalado
+em seu sistema, e se não estiver, faça da forma como preferir. Com o gRPC instalado,
+execute os seguintes comandos, começando da raiz do repositório:
 
 ```bash
 $ protoc -I=proto --cpp_out=proto --grpc_out=proto --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin proto/transaction.proto
@@ -15,18 +33,21 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ make
+$ cd ..
 ```
 
-Para executar o servidor então bastará usar o executável
+Para executar o servidor então bastará usar o executável resultante:
 
 ```bash
-$ ./transaction_server
+$ ./build/transaction_server
 ```
 
-que estará na pasta `build`.
+É essencial que o executável seja executado da raiz do repositório, e não da
+pasta `build`.
 
 Observação: no primeiro comando, altere `/usr/bin/grpc_cpp_plugin` para o caminho
-onde se encontra o compilador proto para c++ da sua instação do grpc
+onde se encontra o compilador de proto da sua instalação do gRPC. Para sistemas
+Arch Linux com gRPC instalado via pacman, essa é a localização.
 
 -------------------------------------------------------------------------------
 
