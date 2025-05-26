@@ -28,12 +28,17 @@ struct NullValue<int> {
 };
 
 template<>
+struct NullValue<long long int> {
+    static long long int value() { return std::numeric_limits<long long int>::min(); }
+};
+
+template<>
 struct NullValue<double> {
     static double value() { return std::numeric_limits<double>::quiet_NaN(); }
 };
 
 
-using VarCell = std::variant<int, double, std::string, std::nullptr_t>;;
+using VarCell = std::variant<int, long long int, double, std::string, std::nullptr_t>;;
 
 using VarRow = std::vector<VarCell>;
 using AnyRow = std::vector<std::any>;
