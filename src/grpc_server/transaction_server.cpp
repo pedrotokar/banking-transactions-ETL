@@ -975,7 +975,7 @@ void RunServer() {
 
     //Building trigger and manager
     ServerTrigger* trigger = buildPipelineTransacoes();
-    PipelineManager* manager = new PipelineManager(*trigger, dfE1, 1);
+    PipelineManager* manager = new PipelineManager(*trigger, dfE1, 8, 1);
     manager->start();
 
     std::string server_address("0.0.0.0:50051");

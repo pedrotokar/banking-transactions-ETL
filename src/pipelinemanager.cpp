@@ -1,12 +1,13 @@
 // PipelineManager.cpp
 #include "pipelinemanager.hpp"
-#include <iostream> // Para logs/debug, remova se não for necessário
+#include <iostream>
 
 // Construtor
-PipelineManager::PipelineManager(ServerTrigger& trigger, DataFrame empty_df_template, size_t df_trigger_size)
-    : pipeline_trigger(trigger),        // Inicializa a referência
-      df_trigger_size(df_trigger_size), // Inicializa o tamanho do trigger
-      running(false) {                  // Atomic bool inicializado como false
+PipelineManager::PipelineManager(ServerTrigger& trigger, DataFrame empty_df_template, size_t pipelineNumThreads, size_t df_trigger_size)
+    : pipeline_trigger(trigger),              // Inicializa a referência
+      pipelineNumThreads(pipelineNumThreads), // Número de threads padrão para a pipeline
+      df_trigger_size(df_trigger_size),       // Inicializa o tamanho do trigger
+      running(false) {                        // Atomic bool inicializado como false
     
     if(empty_df_template.size() > 0) {
         std::cerr << "PipelineManager: Error - empty_df_template should be empty." << std::endl;
@@ -118,14 +119,15 @@ void PipelineManager::processingLoop() {
                 std::cout << "PipelineManager: Waiting for orchestrator thread to finish." << std::endl;
                 orchestratorThread.join();
             }
+            std::cout << "PipelineManager Thread ID" << std::this_thread::get_id() << " executando a pipeline ###@@@" << std::endl;
 
             // Prepara os dados para a pipeline.
             std::swap(waiting_dataframe, running_dataframe);
 
             waiting_dataframe = local_empty_template; // Reseta waiting_dataframe para a estrutura vazia.
-            
+
             std::cout << "PipelineManager: Triggering pipeline with " << running_dataframe.size() << " rows." << std::endl;
-            orchestratorThread = pipeline_trigger.start(8, std::make_shared<DataFrame>(running_dataframe)); // TODO: alterar 8 para o numero de threads escolhido
+            orchestratorThread = pipeline_trigger.start(pipelineNumThreads, std::make_shared<DataFrame>(running_dataframe));
         }
     }
     std::cout << "PipelineManager: Processing loop finished." << std::endl;

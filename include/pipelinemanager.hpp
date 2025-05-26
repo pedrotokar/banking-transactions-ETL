@@ -23,7 +23,10 @@ public:
     // - df_trigger_size: Número mínimo de linhas no dataframe agregado
     //                    para considerar disparar a pipeline (exemplo de critério).
 
-    PipelineManager(ServerTrigger& pipeline_trigger, DataFrame empty_dataframe, size_t df_trigger_size = 1);
+    PipelineManager(ServerTrigger& pipeline_trigger, 
+                    DataFrame empty_dataframe, 
+                    size_t pipelineNumThreads=8, 
+                    size_t df_trigger_size=1);
     ~PipelineManager();
 
     // Impede cópia e atribuição para simplificar o gerenciamento da thread e mutexes.
@@ -60,6 +63,7 @@ private:
     std::atomic<bool> running{false};  // Sinalizador para controlar o loop da thread
 
     size_t df_trigger_size; // Critério para disparar a pipeline
+    size_t pipelineNumThreads; // Número de threads que a pipeline pode usar
 };
 
 #endif // PIPELINEMANAGER_HPP
