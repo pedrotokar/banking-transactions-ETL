@@ -527,15 +527,17 @@ void Trigger::orchestratePipelineMultiThread3(int maxThreads) {
 // ##################################################################################################
 // Implementação de RequestTrigger
 void RequestTrigger::start(int numThreads) {
+    isBusy = true;
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
         orchestratePipelineMultiThread3(numThreads);
-    } 
+    }
 
     else {
         std::cout << "Executando a pipeline em uma única thread.\n";
         orchestratePipelineMonoThread();
     }
+    isBusy = false;
 }
 
 // ##################################################################################################

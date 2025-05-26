@@ -40,6 +40,8 @@ public:
     // Esses parâmetros são usados para calcular a distribuição de threads
     double getAlpha() const;
     void setAlpha(double alpha);
+
+    bool getBusyStatus() {return isBusy;};
 protected:
     // Vetor de tasks que serão os pontos de partida da pipeline
     std::vector<std::shared_ptr<Task>> vExtractors;
@@ -55,6 +57,7 @@ protected:
     void orchestratePipelineMultiThread2(int numThreads);
     void orchestratePipelineMultiThread3(int numThreads);
     bool calculateThreadsDistribution(int numThreads);
+    bool isBusy = false;
 };
 
 // Trigger que executa a pipeline apenas uma vez

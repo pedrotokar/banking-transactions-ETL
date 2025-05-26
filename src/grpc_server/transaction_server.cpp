@@ -9,7 +9,7 @@
 #include "transaction.pb.h"
 #include "transaction.grpc.pb.h"
 
-#include "dataframe.h"
+#include "types.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -28,14 +28,22 @@ public:
                             Result* reply) override {
         Transaction current;
         int incomingTransactions = 0;
+        std::vector<VarRow>* rowBatch = new std::vector<VarRow>;
         while(stream->Read(&current)){
-        //==== Lógica vai aqui - esse while vai loopar enquanto há stream do client ====
-            std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " <<
-            incomingTransactions << "ª transação de id " << current.id_transacao() << ": " <<
-            current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " <<
-            current.id_regiao() << " | " << current.modalidade_pagamento() << " | " <<
-            current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl;
+            //==== Lógica vai aqui - esse while vai loopar enquanto há stream do client ====
+            VarRow row = {current.id_transacao(), current.id_usuario_pagador(),
+                current.id_usuario_recebedor(), current.id_regiao(),
+                current.modalidade_pagamento(), current.data_horario(),
+                current.valor_transacao()};
+            rowBatch->push_back(row);
+
+            std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
+
             incomingTransactions++;
+            if(rowBatch->size() > 5000){
+                //aqui entrega pra outra thread - não existe ainda
+                rowBatch = new std::vector<VarRow>;
+            }
         }
         reply->set_ok(true);
         return Status::OK;
