@@ -922,7 +922,6 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     trigger->addExtractor(e2);
     trigger->addExtractor(e3);
 
-
     return trigger;
 }
     // trigger.addExtractor(e4);
@@ -965,11 +964,14 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     // std::cout << "Tempo de execução: " << elapsed.count() << " milissegundos.\n";
 
 class TransactionServerImpl final : public TransactionService::Service {
+private:
+    ServerTrigger* trigger;
+
 public:
+    TransactionServerImpl(ServerTrigger* trigg): trigger(trigg) {};
     Status SendTransaction (ServerContext* context,
                             ServerReader<Transaction>* stream,
                             Result* reply) override {
-        ServerTrigger* trigger = buildPipelineTransacoes(9);
         Transaction current;
         int incomingTransactions = 0;
         std::vector<VarRow>* rowBatch = new std::vector<VarRow>;
@@ -1014,7 +1016,8 @@ public:
 
 void RunServer() {
     std::string server_address("0.0.0.0:50051");
-    TransactionServerImpl service;
+    ServerTrigger* trigger = buildPipelineTransacoes();
+    TransactionServerImpl service(trigger);
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);

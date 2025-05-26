@@ -400,7 +400,9 @@ void Extractor::consumer(std::vector<std::atomic<bool>>& completedList, int tInd
 }
 
 void Extractor::finishExecution(){
-    repository->close();
+    if(readAgain){
+        repository->close();
+    }
     endProduction = false;
     cntExecutedPreviousTasks = 0;
 }
@@ -410,13 +412,13 @@ void Extractor::finishExecution(){
 // Metodos da classe ExtractorNoop
 
 void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
-    std::cout << "chamou" << std::endl;
+    // std::cout << "chamou" << std::endl;
     if(outputDFs.size() == 0){
-        std::cout << "chamou e nçao tinha coisa" << std::endl;
+        // std::cout << "chamou e nçao tinha coisa" << std::endl;
         outputDFs.push_back(modelDF);
     }
     else {
-        std::cout << "chamou e já tinha coisa" << std::endl;
+        // std::cout << "chamou e já tinha coisa" << std::endl;
         outputDFs[0] = modelDF;
     }
     dfOutput = outputDFs.at(0);
@@ -425,7 +427,7 @@ void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
 void ExtractorNoop::executeMonoThread() {
     std::cout << "WOWWW" << std::endl;
     std::cout << dfOutput->toString() << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // std::this_thread::sleep_for(std::chrono::seconds(5));
 }
 
 void ExtractorNoop::finishExecution(){
