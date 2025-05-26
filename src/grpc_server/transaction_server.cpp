@@ -639,13 +639,14 @@ class T12Transformer final : public Transformer {
 public:
     void transform(std::vector<DataFramePtr>& outputs,
                     const std::vector<DataFrameWithIndexes>& inputs) override {
-        std::cout << "AAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
         
         if (inputs.size() < 2) return;
         auto inDF    = inputs[0].second;   // E1
 
         auto colID = inDF->getColumn("id_transacao");
         auto colTIM = inDF->getColumn("timestamp_envio");
+
+        long long sum = 0;
         
         for (int i = 0; i < colID->size(); i++) {
             auto current_time_point = std::chrono::system_clock::now();
@@ -653,8 +654,9 @@ public:
                 current_time_point.time_since_epoch()
             ).count();        
             
-            std::cout << current_timestamp_ms - std::stoll(colTIM->getValue(i)) << std::endl;
+            sum += current_timestamp_ms - std::stoll(colTIM->getValue(i));
         }
+        std::cout << "Latencia: " << sum / colID->size() << "ms" << std::endl;
     }
 };
 
