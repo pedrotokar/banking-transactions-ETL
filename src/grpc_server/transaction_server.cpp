@@ -91,7 +91,7 @@ public:
             }
 
             // monta row incluindo limite_Boleto (lbol)
-            std::vector<std::any> row = {
+            VarRow row = {
                 trxId,
                 usr,
                 mod,
@@ -635,6 +635,29 @@ class T11Transformer final : public Transformer {
         }
 };
 
+class T12Transformer final : public Transformer {
+public:
+    void transform(std::vector<DataFramePtr>& outputs,
+                    const std::vector<DataFrameWithIndexes>& inputs) override {
+        std::cout << "AAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+        
+        if (inputs.size() < 2) return;
+        auto inDF    = inputs[0].second;   // E1
+
+        auto colID = inDF->getColumn("id_transacao");
+        auto colTIM = inDF->getColumn("timestamp_envio");
+        
+        for (int i = 0; i < colID->size(); i++) {
+            auto current_time_point = std::chrono::system_clock::now();
+            long long current_timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                current_time_point.time_since_epoch()
+            ).count();        
+            
+            std::cout << current_timestamp_ms - std::stoll(colTIM->getValue(i)) << std::endl;
+        }
+    }
+};
+
 class PrintTransformer final : public Transformer {
 private:
     std::string message;
@@ -655,13 +678,14 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     //====================Construção dos DFS===========================//
 
     auto dfE1 = std::make_shared<DataFrame>();
-    dfE1->addColumn<std::string>("id_transacao");
-    dfE1->addColumn<std::string>("id_usuario_pagador");
-    dfE1->addColumn<std::string>("id_usuario_recebedor");
-    dfE1->addColumn<std::string>("id_regiao"); // ocorrência da região
-    dfE1->addColumn<std::string>("modalidade_pagamento");
-    dfE1->addColumn<std::string>("data_horario");
-    dfE1->addColumn<double>     ("valor_transacao");
+    dfE1->addColumn<std::string>  ("id_transacao");
+    dfE1->addColumn<std::string>  ("id_usuario_pagador");
+    dfE1->addColumn<std::string>  ("id_usuario_recebedor");
+    dfE1->addColumn<std::string>  ("id_regiao"); // ocorrência da região
+    dfE1->addColumn<std::string>  ("modalidade_pagamento");
+    dfE1->addColumn<std::string>  ("data_horario");
+    dfE1->addColumn<double>       ("valor_transacao");
+    dfE1->addColumn<long long int>("timestamp_envio");
 
     auto dfE2 = std::make_shared<DataFrame>();
     dfE2->addColumn<std::string>("id_usuario");
@@ -860,6 +884,9 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     t11->addOutput(dfT11User);
     t11->setTaskName("t11");
 
+    auto t12 = std::make_shared<T12Transformer>();
+    t12->setTaskName("t12");
+
     auto l6 = std::make_shared<LoaderFile>(0, true);
     l6->addRepo(new FileRepository("outputs/output_L6.csv", ",", true));
     l6->setTaskName("l6");
@@ -885,6 +912,8 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
 
     //==================== Construção do DAG ===========================//
     e1->addNext(t1, {1});
+    e1->addNext(t12, {1});
+
     e2->addNext(t1, {1});
 
     e3->addNext(t4, {1});
@@ -913,6 +942,8 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     t9->addNext(t10, {1});
 
     t10->addNext(t11, {1});
+
+    t11->addNext(t12, {1,1});
 
     t11->addNext(l1, {1,1});
     t11->addNext(l2, {1,1});
@@ -943,7 +974,7 @@ public:
             VarRow row = {current.id_transacao(), current.id_usuario_pagador(),
                 current.id_usuario_recebedor(), current.id_regiao(),
                 current.modalidade_pagamento(), current.data_horario(),
-                current.valor_transacao()};
+                current.valor_transacao(), current.timestamp_envio()};
             rowBatch->push_back(row);
 
             // std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
@@ -965,13 +996,14 @@ public:
 void RunServer() {
     //Building dataframe
     auto dfE1 = DataFrame();
-    dfE1.addColumn<std::string>("id_transacao");
-    dfE1.addColumn<std::string>("id_usuario_pagador");
-    dfE1.addColumn<std::string>("id_usuario_recebedor");
-    dfE1.addColumn<std::string>("id_regiao");
-    dfE1.addColumn<std::string>("modalidade_pagamento");
-    dfE1.addColumn<std::string>("data_horario");
-    dfE1.addColumn<double>     ("valor_transacao");
+    dfE1.addColumn<std::string>  ("id_transacao");
+    dfE1.addColumn<std::string>  ("id_usuario_pagador");
+    dfE1.addColumn<std::string>  ("id_usuario_recebedor");
+    dfE1.addColumn<std::string>  ("id_regiao"); // ocorrência da região
+    dfE1.addColumn<std::string>  ("modalidade_pagamento");
+    dfE1.addColumn<std::string>  ("data_horario");
+    dfE1.addColumn<double>       ("valor_transacao");
+    dfE1.addColumn<long long int>("timestamp_envio");
 
     //Building trigger and manager
     ServerTrigger* trigger = buildPipelineTransacoes();
