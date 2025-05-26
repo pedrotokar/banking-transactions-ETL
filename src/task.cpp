@@ -416,16 +416,17 @@ void ExtractorNoop::addOutput(std::shared_ptr<DataFrame> modelDF) {
 
 void ExtractorNoop::executeMonoThread() {
     std::cout << "WOWWW" << std::endl;
-    std::cout << "WOWWW" << std::endl;
     std::cout << dfOutput->toString() << std::endl;
-
-    return;
 }
 
 std::vector<std::thread> ExtractorNoop::executeMultiThread(int numThreads, std::vector<std::atomic<bool>>& completedThreads,
                                                        std::condition_variable& orchestratorCv, std::mutex& orchestratorMutex){
+    std::cout << taskName << " multi " << numThreads << " " << dfOutput->size() << std::endl;
     std::vector<std::thread> runningThreads;
-    runningThreads.emplace_back(&ExtractorNoop::executeMonoThreadSpecial, this, ref(completedThreads), 0, ref(orchestratorCv), ref(orchestratorMutex));
+    for (int i = 0; i < numThreads; ++i) {
+        std::cout << i << std::endl;
+        runningThreads.emplace_back(&ExtractorNoop::executeMonoThreadSpecial, this, ref(completedThreads), i, ref(orchestratorCv), ref(orchestratorMutex));
+    }
     return runningThreads;
 }
 

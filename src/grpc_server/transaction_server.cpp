@@ -652,7 +652,7 @@ public:
     }
 };
 
-RequestTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* rowBatch = nullptr) {
+ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* rowBatch = nullptr) {
     //====================Construção dos DFS===========================//
 
     auto dfE1 = std::make_shared<DataFrame>();
@@ -753,11 +753,16 @@ RequestTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* r
 
     //====================Init Triggers===========================//
 
-    auto e1 = std::make_shared<ExtractorFile>();
-    e1->addRepo(new FileRepository("data/transacoes_100k.csv", ",", true));
+    auto e1 = std::make_shared<ExtractorNoop>();
+    for(VarRow row: *rowBatch){
+        dfE1->addRow(row);
+    }
+    std::cout << dfE1->size() << std::endl;
     e1->addOutput(dfE1);
     e1->setTaskName("e1");
     e1->blockReadAgain();
+    e1->blockParallel();
+
 
     auto e2 = std::make_shared<ExtractorSQLite>();
     SQLiteRepository* sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
@@ -914,17 +919,11 @@ RequestTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* r
     t11->addNext(l1, {1,1});
     t11->addNext(l2, {1,1});
 
-    RequestTrigger* trigger = new RequestTrigger();
+    ServerTrigger* trigger = new ServerTrigger();
     trigger->addExtractor(e1);
     trigger->addExtractor(e2);
     trigger->addExtractor(e3);
 
-    // auto dfPopulated = dfE1->emptyCopy();
-    //
-    // for(VarRow row: *rowBatch){
-    //     dfPopulated->addRow(row);
-    // }
-    // e1->addRepo(new MemoryRepository(dfPopulated));
 
     return trigger;
 }
@@ -988,9 +987,9 @@ public:
             incomingTransactions++;
             if(rowBatch->size() > 5000){
 
-                RequestTrigger* trigger = buildPipelineTransacoes(9, rowBatch);
-                trigger->start(5);
-                std::this_thread::sleep_for(std::chrono::seconds(10));
+                ServerTrigger* trigger = buildPipelineTransacoes(9, rowBatch);
+                trigger->start(1);
+
                 //aqui entrega pra outra thread - não existe ainda
                 rowBatch = new std::vector<VarRow>;
             }
