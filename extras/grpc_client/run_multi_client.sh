@@ -39,16 +39,14 @@ done
 
 echo "Iniciando $NUM_CLIENTS clientes gRPC em paralelo"
 echo "Servidor: $SERVER"
-echo "Usuários por cliente: $USERS"
 echo "Transações por cliente: $TX_PER_CLIENT"
-echo "Workers por cliente: $WORKERS"
 echo ""
 
 # Executar os clientes em paralelo
 for i in $(seq 1 $NUM_CLIENTS); do
   SEED=$((42 + $i))
   echo "Iniciando cliente $i com seed $SEED"
-  python3 grpc_mock_generator.py --server $SERVER --users $USERS --transactions $TX_PER_CLIENT --workers $WORKERS --seed $SEED &
+  python3 transaction_client.py --server $SERVER --transactions $TX_PER_CLIENT --workers $WORKERS --seed $SEED &
   
   # Pequeno delay para não sobrecarregar o CPU instantaneamente
   sleep 0.5
