@@ -40,8 +40,7 @@ public:
         if (inputs.size() < 2) return;
         auto inTrans = inputs[0].second;   // E1
         auto inUsers = inputs[1].second;   // E2
-        auto out     = outputs[0];         // dfT1
-
+        auto out     = outputs[0];         // dfT1ndl;
         // posições E1
         int pTrId = inTrans->getColumn("id_transacao")         ->getPosition();
         int pUser = inTrans->getColumn("id_usuario_pagador")   ->getPosition();
@@ -754,15 +753,13 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     //====================Init Triggers===========================//
 
     auto e1 = std::make_shared<ExtractorNoop>();
-    for(VarRow row: *rowBatch){
-        dfE1->addRow(row);
-    }
-    std::cout << dfE1->size() << std::endl;
+    // for(VarRow row: *rowBatch){
+    //     dfE1->addRow(row);
+    // }
+    // std::cout << dfE1->size() << std::endl;
     e1->addOutput(dfE1);
     e1->setTaskName("e1");
-    e1->blockReadAgain();
     e1->blockParallel();
-
 
     auto e2 = std::make_shared<ExtractorSQLite>();
     SQLiteRepository* sqliteRepository = new SQLiteRepository("data/informacoes_cadastro_100k.db");
@@ -783,9 +780,9 @@ ServerTrigger* buildPipelineTransacoes(int nThreads = 8, std::vector<VarRow>* ro
     t1->addOutput(dfT1);
     t1->setTaskName("t1");
 
-    auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
-    t1->addNext(tp1, {1});
-    tp1->setTaskName("tp1");
+    // auto tp1 = std::make_shared<PrintTransformer>(">>> T1 outputs");
+    // t1->addNext(tp1, {1});
+    // tp1->setTaskName("tp1");
 
     auto t2 = std::make_shared<T2Transformer>();
     t2->addOutput(dfT2);
@@ -972,6 +969,7 @@ public:
     Status SendTransaction (ServerContext* context,
                             ServerReader<Transaction>* stream,
                             Result* reply) override {
+        ServerTrigger* trigger = buildPipelineTransacoes(9);
         Transaction current;
         int incomingTransactions = 0;
         std::vector<VarRow>* rowBatch = new std::vector<VarRow>;
@@ -983,13 +981,25 @@ public:
                 current.valor_transacao()};
             rowBatch->push_back(row);
 
-            std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
+            // std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
 
             incomingTransactions++;
             if(rowBatch->size() > 5000){
 
-                ServerTrigger* trigger = buildPipelineTransacoes(9, rowBatch);
-                trigger->start(6);
+                auto dfE1 = std::make_shared<DataFrame>();
+                dfE1->addColumn<std::string>("id_transacao");
+                dfE1->addColumn<std::string>("id_usuario_pagador");
+                dfE1->addColumn<std::string>("id_usuario_recebedor");
+                dfE1->addColumn<std::string>("id_regiao"); // ocorrência da região
+                dfE1->addColumn<std::string>("modalidade_pagamento");
+                dfE1->addColumn<std::string>("data_horario");
+                dfE1->addColumn<double>     ("valor_transacao");
+
+                for(VarRow row: *rowBatch){
+                    dfE1->addRow(row);
+                }
+
+                trigger->start(6, dfE1);
 
 
                 //aqui entrega pra outra thread - não existe ainda

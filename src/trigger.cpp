@@ -570,12 +570,13 @@ void TimerTrigger::stop() {
 // ##################################################################################################
 // ##################################################################################################
 // Implementação de ServerTrigger
-void ServerTrigger::start(int numThreads) { // TODO: usar df
+void ServerTrigger::start(int numThreads, std::shared_ptr<DataFrame> df) { // TODO: usar df
     if(isBusy()) {
         std::cout << "A pipeline já está ocupada.\n";
         return;
     }
-
+    std::shared_ptr<ExtractorNoop> noopExtractor = std::dynamic_pointer_cast<ExtractorNoop>(vExtractors[eIndex]);
+    noopExtractor->addOutput(df);
     //AQUI ENTRA O DF
     // e1->addRepo(new MemoryRepository();
 

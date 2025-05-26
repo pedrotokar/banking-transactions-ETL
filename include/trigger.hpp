@@ -85,7 +85,8 @@ private:
 class ServerTrigger : public Trigger {
 public:
     ServerTrigger(): eIndex(0) {};
-    void start(int numThreads = 1) override; // TODO: usar df
+    void start(int numThreads = 1) {return;};
+    void start(int numThreads = 1, std::shared_ptr<DataFrame> df = nullptr); // TODO: usar df
     bool isBusy() const;
     void setExtractorIndex(int index) {eIndex = index;};
 private:

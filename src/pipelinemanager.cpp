@@ -121,7 +121,7 @@ void PipelineManager::processingLoop() {
             waiting_dataframe = local_empty_template; // Reseta waiting_dataframe para a estrutura vazia.
 
             // std::cout << "PipelineManager: Triggering pipeline with " << running_dataframe.rowCount() << " rows." << std::endl;
-            pipeline_trigger.start(8); // TODO: alterar 8 para o numero de threads escolhido
+            pipeline_trigger.start(8, std::make_shared<DataFrame>(running_dataframe)); // TODO: alterar 8 para o numero de threads escolhido
             // Após a execução (se síncrona), running_dataframe pode ser explicitamente limpo
             // ou simplesmente será sobrescrito na próxima troca.
             // Se for assíncrono, certifique-se de que running_dataframe não seja modificado
