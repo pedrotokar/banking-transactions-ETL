@@ -84,9 +84,12 @@ private:
 // Similar ao RequestTrigger, mas um método para verificar se a pipeline está ocupada
 class ServerTrigger : public Trigger {
 public:
+    ServerTrigger(): eIndex(0) {};
     void start(int numThreads = 1) override; // TODO: usar df
     bool isBusy() const;
+    void setExtractorIndex(int index) {eIndex = index;};
 private:
+    int eIndex;
     std::atomic<bool> busy{false}; // Sinalizador para indicar se a pipeline está ocupada
 };
 

@@ -576,6 +576,9 @@ void ServerTrigger::start(int numThreads) { // TODO: usar df
         return;
     }
 
+    //AQUI ENTRA O DF
+    // e1->addRepo(new MemoryRepository();
+
     busy.store(true, std::memory_order_relaxed); // Marca a pipeline como ocupada
     if(numThreads > 1) {
         std::cout << "Executando a pipeline com " << numThreads << " threads.\n";
