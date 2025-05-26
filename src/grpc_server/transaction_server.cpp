@@ -1,5 +1,6 @@
 // ===========Versão com threadpool gerenciada pelog RPC===============
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -656,7 +657,14 @@ public:
             
             sum += current_timestamp_ms - std::stoll(colTIM->getValue(i));
         }
-        std::cout << "Latencia: " << sum / colID->size() << "ms" << std::endl;
+        
+        std::fstream outFile;
+        outFile.open("out.txt", std::ios::out | std::ios_base::app);
+        outFile << "Latencia média: " << sum / colID->size() << "ms\n";
+        outFile.close();
+
+        std::cout << "Latencia média: " << sum / colID->size() << "ms" << std::endl;
+        std::cout << std::endl;
     }
 };
 
@@ -982,7 +990,7 @@ public:
             // std::cout << "Thread " << std::this_thread::get_id() << " recebeu a " << incomingTransactions << "ª transação de id " << current.id_transacao() << ": " << current.id_usuario_pagador() << " | " << current.id_usuario_recebedor() << " | " << current.id_regiao() << " | " << current.modalidade_pagamento() << " | " << current.data_horario() << " | " << current.valor_transacao() << " R$" << std::endl; std::cout << rowBatch->size() << std::endl;
 
             incomingTransactions++;
-            if(rowBatch->size() > 8000){
+            if(rowBatch->size() > 5000){
 
                 std::cout << "thread " << std::this_thread::get_id() << " chamando submit." << std::endl;
                 manager->submitDataBatch(*rowBatch);
